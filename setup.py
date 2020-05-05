@@ -12,7 +12,7 @@ setuptools.setup(
     packages=setuptools.find_namespace_packages(),
     zip_safe=False,
     install_requires=[
-        "azure-storage-blob==2.1.0"
+        "azure-storage-blob==2.1.0",
         "google-cloud-storage",
     ],
 )
