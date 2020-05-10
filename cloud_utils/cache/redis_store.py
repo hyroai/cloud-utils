@@ -3,6 +3,7 @@ import logging
 from typing import Callable, Text, Tuple
 
 import redis
+
 from cloud_utils import config
 
 _REDIS_CLIENT = redis.Redis(
