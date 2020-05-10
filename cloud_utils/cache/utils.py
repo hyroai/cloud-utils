@@ -9,10 +9,9 @@ from typing import Any, Callable, Text
 import async_lru
 import gamla
 import toolz
-from nlu import config
 from toolz import curried
 
-from cloud_utils import storage
+from cloud_utils import config, storage
 from cloud_utils.cache import file_store, redis_store
 from cloud_utils.storage import persistent
 from cloud_utils.storage import utils as storage_utils

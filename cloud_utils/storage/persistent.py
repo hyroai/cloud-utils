@@ -4,7 +4,7 @@ import pathlib
 from typing import Any, Text
 
 import toolz
-from nlu import config
+from cloud_utils import config
 
 from cloud_utils.cache import file_store
 from cloud_utils.storage import utils

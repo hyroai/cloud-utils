@@ -3,9 +3,9 @@ from typing import Text
 
 import gamla
 import toolz
-from nlu import config
 from toolz import curried
 
+from cloud_utils import config
 from cloud_utils.storage import download_blob_as_string, persistent
 
 

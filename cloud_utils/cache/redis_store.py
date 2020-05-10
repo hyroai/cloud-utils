@@ -3,7 +3,7 @@ import logging
 from typing import Callable, Text, Tuple
 
 import redis
-from nlu import config
+from cloud_utils import config
 
 _REDIS_CLIENT = redis.Redis(
     host=config.EXTERNAL_API_CACHE_REDIS_HOST,

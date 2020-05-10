@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, Any, Callable, FrozenSet, Optional, Text, Tupl
 import gamla
 import pymongo
 import toolz
-from nlu import config
+from cloud_utils import config
 from toolz import curried
 
 if TYPE_CHECKING:  # Prevent cyclic imports
