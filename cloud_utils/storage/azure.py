@@ -30,7 +30,7 @@ def download_blob_as_string(bucket_name: Text, blob_name: Text) -> Text:
 
 
 @toolz.curry
-def download_blob_as_binary(bucket_name: Text, blob_name: Text) -> io.BytesIO:
+def download_blob_as_stream(bucket_name: Text, blob_name: Text) -> io.BytesIO:
     stream = io.BytesIO()
     _get_blob_service().get_blob_to_stream(bucket_name, blob_name, stream)
     stream.seek(0)
