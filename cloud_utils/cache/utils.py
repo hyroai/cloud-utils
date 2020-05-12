@@ -4,31 +4,30 @@ import functools
 import inspect
 import json
 import logging
+import pathlib
 from typing import Any, Callable, Text
 
 import async_lru
 import gamla
+import redis
 import toolz
 from toolz import curried
 
-from cloud_utils import config, storage
-from cloud_utils.cache import file_store, redis_store
-from cloud_utils.storage import persistent
+from cloud_utils import storage
+from cloud_utils.cache import file_store, redis_utils
 from cloud_utils.storage import utils as storage_utils
 
 HASH_VERSION = "hash_version"
 _LAST_RUN_TIMESTAMP = "last_run_timestamp"
 
 
-def _save_to_blob(item_name: Text, obj: Any):
-    storage.upload_blob(
-        config.BUCKET_NAME, storage_utils.hash_to_filename(item_name), obj
-    )
+@toolz.curry
+def _save_to_blob(item_name: Text, obj: Any, bucket_name: Text):
+    storage.upload_blob(bucket_name, storage_utils.hash_to_filename(item_name), obj)
 
 
-def _write_to_versions_file(deployment_name: Text, hash_to_load: Text):
-    versions_file = toolz.pipe(config.VERSIONS_FILE_PATH, persistent.open_file("r+"))
-
+@toolz.curry
+def _write_to_versions_file(versions_file, deployment_name: Text, hash_to_load: Text):
     versions = toolz.assoc(
         json.load(versions_file),
         deployment_name,
@@ -40,17 +39,24 @@ def _write_to_versions_file(deployment_name: Text, hash_to_load: Text):
     json.dump(versions, versions_file, indent=2)
 
 
-save_to_bucket_return_hash = toolz.compose_left(
-    gamla.pair_with(gamla.compute_stable_json_hash),
-    curried.do(gamla.star(_save_to_blob)),
-    curried.do(gamla.star(persistent.save_local)),
-    toolz.first,
-    gamla.log_text("Saved hash {}"),
-)
+def save_to_bucket_return_hash(
+    cache_dir: pathlib.Path, bucket_name: Text, environment: Text
+):
+    return toolz.compose_left(
+        gamla.pair_with(gamla.compute_stable_json_hash),
+        curried.do(gamla.star(_save_to_blob(bucket_name))),
+        curried.do(gamla.star(file_store.save_local(cache_dir)))
+        if environment == "local"
+        else toolz.identity,
+        toolz.first,
+        gamla.log_text("Saved hash {}"),
+    )
 
 
-def auto_updating_cache(factory: Callable) -> Callable:
-    versions = toolz.pipe(config.VERSIONS_FILE_PATH, persistent.open_file, json.load)
+def auto_updating_cache(
+    factory: Callable, update: bool, versions_file_path: Text
+) -> Callable:
+    versions = toolz.pipe(versions_file_path, file_store.open_file, json.load)
 
     # Deployment name is the concatenation of caller's module name and factory's function name.
     deployment_name = (
@@ -58,7 +64,7 @@ def auto_updating_cache(factory: Callable) -> Callable:
     )
 
     if deployment_name in versions and (
-        not config.AUTO_UPDATING_CACHE
+        not update
         or datetime.datetime.now()
         - datetime.datetime.fromisoformat(
             versions[deployment_name][_LAST_RUN_TIMESTAMP]
@@ -84,25 +90,16 @@ def auto_updating_cache(factory: Callable) -> Callable:
         else:
             raise e
 
-    _write_to_versions_file(deployment_name, hash_to_load)
+    toolz.pipe(
+        versions_file_path,
+        file_store.open_file("r+"),
+        _write_to_versions_file(deployment_name, hash_to_load),
+    )
 
     return gamla.just(hash_to_load)
 
 
 _ORDERED_SEQUENCE_TYPES = (list, tuple)
-
-
-def _resolve_cache_store(num_misses_to_trigger_sync: int) -> Callable:
-    if config.ENVIRONMENT in ("production", "staging", "development"):
-        return functools.partial(
-            redis_store.make_redis_store,
-            num_misses_to_trigger_sync=num_misses_to_trigger_sync,
-        )
-
-    return functools.partial(
-        file_store.make_file_store,
-        num_misses_to_trigger_sync=num_misses_to_trigger_sync,
-    )
 
 
 def _get_origin_type(type_hint):
@@ -114,7 +111,11 @@ def _get_origin_type(type_hint):
 
 
 def persistent_cache(
-    name: Text, is_external: bool = False, num_misses_to_trigger_sync: int = 100
+    redis_client: redis.Redis,
+    name: Text,
+    is_external: bool = False,
+    num_misses_to_trigger_sync: int = 100,
+    environment: Text = "local",
 ) -> Callable:
 
     maxsize = 10000
@@ -124,15 +125,16 @@ def persistent_cache(
             return async_lru.alru_cache(maxsize=maxsize)(func)
         return functools.lru_cache(maxsize=maxsize)(func)
 
-    if not is_external and config.ENVIRONMENT in (
-        "production",
-        "staging",
-        "development",
-    ):
+    if not is_external and environment in ("production", "staging", "development"):
         return simple_decorator
 
-    get_cache_item, set_cache_item = _resolve_cache_store(num_misses_to_trigger_sync)(
-        name
+    if environment in ("production", "staging", "development"):
+        _resolve_cache_store = redis_utils.make_redis_store(redis_client, environment)
+    else:
+        _resolve_cache_store = file_store.make_file_store
+
+    get_cache_item, set_cache_item = _resolve_cache_store(
+        name, num_misses_to_trigger_sync
     )
 
     def decorator(func):

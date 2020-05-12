@@ -3,11 +3,9 @@ from typing import Any, Dict, Iterable, Text
 import pymongo
 import toolz
 
-from cloud_utils import config
 
-
-def get_db(db_name: Text):
-    return pymongo.MongoClient(f"{config.MONGODB_URI}/{db_name}")
+def get_client(mongodb_uri: Text):
+    return pymongo.MongoClient(mongodb_uri)
 
 
 @toolz.curry

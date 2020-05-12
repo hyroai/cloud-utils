@@ -3,27 +3,27 @@ import logging
 from typing import Callable, Text, Tuple
 
 import redis
-
-from cloud_utils import config
-
-_REDIS_CLIENT = redis.Redis(
-    host=config.EXTERNAL_API_CACHE_REDIS_HOST,
-    port=6379,
-    db=0,
-    decode_responses=True,
-    password=config.EXTERNAL_API_CACHE_REDIS_PASSWORD,
-)
+import toolz
 
 
-def _get_redis_cache_key_name(cache_name: Text, key: Tuple) -> Text:
-    return f"{config.ENVIRONMENT}:{cache_name}:{json.dumps(key)}"
+def get_redis_client(host: Text, password: Text) -> redis.Redis:
+    return redis.Redis(
+        host=host, port=6379, db=0, decode_responses=True, password=password
+    )
 
 
-def make_redis_store(name: Text, **_) -> Tuple[Callable, Callable]:
+def _get_redis_cache_key_name(environment: Text, cache_name: Text, key: Tuple) -> Text:
+    return f"{environment}:{cache_name}:{json.dumps(key)}"
+
+
+@toolz.curry
+def make_redis_store(
+    redis_client: redis.Redis, environment: Text, name: Text, **_
+) -> Tuple[Callable, Callable]:
     logging.info(f"initializing redis cache for {name}")
 
     def get_item(key: Tuple):
-        result = _REDIS_CLIENT.get(_get_redis_cache_key_name(name, key))
+        result = redis_client.get(_get_redis_cache_key_name(environment, name, key))
         if result is None:
             raise KeyError
         try:
@@ -34,7 +34,9 @@ def make_redis_store(name: Text, **_) -> Tuple[Callable, Callable]:
 
     def set_item(key: Tuple, value):
         try:
-            _REDIS_CLIENT.set(_get_redis_cache_key_name(name, key), json.dumps(value))
+            redis_client.set(
+                _get_redis_cache_key_name(environment, name, key), json.dumps(value)
+            )
         except (
             redis.exceptions.ConnectionError,
             redis.exceptions.TimeoutError,
