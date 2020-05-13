@@ -4,26 +4,17 @@ import functools
 import inspect
 import json
 import logging
-import pathlib
-from typing import Any, Callable, Text
+from typing import Callable, Text
 
 import async_lru
 import gamla
 import redis
 import toolz
-from toolz import curried
 
-from cloud_utils import storage
 from cloud_utils.cache import file_store, redis_utils
-from cloud_utils.storage import utils as storage_utils
 
 HASH_VERSION = "hash_version"
 _LAST_RUN_TIMESTAMP = "last_run_timestamp"
-
-
-@toolz.curry
-def _save_to_blob(item_name: Text, obj: Any, bucket_name: Text):
-    storage.upload_blob(bucket_name, storage_utils.hash_to_filename(item_name), obj)
 
 
 @toolz.curry
@@ -37,20 +28,6 @@ def _write_to_versions_file(versions_file, deployment_name: Text, hash_to_load: 
         },
     )
     json.dump(versions, versions_file, indent=2)
-
-
-def save_to_bucket_return_hash(
-    cache_dir: pathlib.Path, bucket_name: Text, environment: Text
-):
-    return toolz.compose_left(
-        gamla.pair_with(gamla.compute_stable_json_hash),
-        curried.do(gamla.star(_save_to_blob(bucket_name))),
-        curried.do(gamla.star(file_store.save_local(cache_dir)))
-        if environment == "local"
-        else toolz.identity,
-        toolz.first,
-        gamla.log_text("Saved hash {}"),
-    )
 
 
 def auto_updating_cache(
@@ -77,10 +54,12 @@ def auto_updating_cache(
     try:
         if asyncio.iscoroutinefunction(factory):
             hash_to_load = gamla.run_sync(
-                gamla.compose_left(factory, save_to_bucket_return_hash)()
+                gamla.compose_left(factory, file_store.save_to_bucket_return_hash)()
             )
         else:
-            hash_to_load = gamla.compose_left(factory, save_to_bucket_return_hash)()
+            hash_to_load = gamla.compose_left(
+                factory, file_store.save_to_bucket_return_hash
+            )()
     except Exception as e:
         if deployment_name in versions:
             hash_to_load = versions[deployment_name][HASH_VERSION]
