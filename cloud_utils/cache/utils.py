@@ -92,12 +92,12 @@ def _get_origin_type(type_hint):
 def persistent_cache(
     redis_client: redis.Redis,
     name: Text,
-    is_external: bool = False,
-    num_misses_to_trigger_sync: int = 100,
-    environment: Text = "local",
+    environment: Text,
+    is_external: bool,
+    num_misses_to_trigger_sync: int,
 ) -> Callable:
 
-    maxsize = 10000
+    maxsize = 10_000
 
     def simple_decorator(func):
         if inspect.iscoroutinefunction(func):
