@@ -58,7 +58,8 @@ def save_local(environment: Text, object_hash: Text, obj: Any) -> Any:
     logging.info(f"Saved {object_hash} to local cache.")
 
 
-def load_by_hash(object_hash: Text) -> dict:
+@toolz.curry
+def load_by_hash(environment: Text, bucket_name: Text, object_hash: Text) -> dict:
     try:
         return toolz.pipe(
             object_hash,
@@ -71,8 +72,8 @@ def load_by_hash(object_hash: Text) -> dict:
         return toolz.pipe(
             object_hash,
             gamla.log_text(f"Loading {object_hash} from bucket..."),
-            _load_item,
-            curried.do(save_local(object_hash)),
+            _load_item(bucket_name),
+            curried.do(save_local(environment, object_hash)),
         )
 
 
