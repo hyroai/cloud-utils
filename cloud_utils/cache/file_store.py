@@ -27,6 +27,7 @@ def _save_to_blob(bucket_name: Text, item_name: Text, obj: Any):
     storage.upload_blob(bucket_name, _hash_to_filename(item_name), obj)
 
 
+@toolz.curry
 def _load_item(bucket_name: Text, hash_to_load: Text):
     return toolz.pipe(
         hash_to_load,
