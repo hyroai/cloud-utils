@@ -22,6 +22,7 @@ def _hash_to_filename(hash_str: Text) -> Text:
     return f"items/{hash_str}.json"
 
 
+@toolz.curry
 def _save_to_blob(bucket_name: Text, item_name: Text, obj: Any):
     storage.upload_blob(bucket_name, _hash_to_filename(item_name), obj)
 
@@ -42,7 +43,7 @@ def get_local_path_for_hash(object_hash: Text) -> pathlib.Path:
 
 
 @toolz.curry
-def save_local(environment, object_hash: Text, obj: Any) -> Any:
+def save_local(environment: Text, object_hash: Text, obj: Any) -> Any:
     if environment != "local":
         return
     local_path = get_local_path_for_hash(object_hash)
@@ -82,13 +83,14 @@ def load_file_from_bucket(bucket_name: Text, file_name: Text):
     )
 
 
-save_to_bucket_return_hash = toolz.compose_left(
-    gamla.pair_with(gamla.compute_stable_json_hash),
-    curried.do(gamla.star(_save_to_blob)),
-    curried.do(gamla.star(save_local)),
-    toolz.first,
-    gamla.log_text("Saved hash {}"),
-)
+def save_to_bucket_return_hash(environment: Text, bucket_name: Text):
+    return toolz.compose_left(
+        gamla.pair_with(gamla.compute_stable_json_hash),
+        curried.do(gamla.star(_save_to_blob(bucket_name))),
+        curried.do(gamla.star(save_local(environment))),
+        toolz.first,
+        gamla.log_text("Saved hash {}"),
+    )
 
 
 def _get_local_cache_filename(cache_name: Text) -> Text:
