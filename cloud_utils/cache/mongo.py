@@ -4,8 +4,8 @@ import pymongo
 import toolz
 
 
-def get_client(mongodb_uri: Text):
-    return pymongo.MongoClient(mongodb_uri)
+def get_client(mongodb_uri: Text, **kwargs):
+    return pymongo.MongoClient(mongodb_uri, **kwargs)
 
 
 @toolz.curry
