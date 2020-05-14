@@ -18,7 +18,7 @@ def _get_redis_cache_key_name(environment: Text, cache_name: Text, key: Tuple) -
 
 @toolz.curry
 def make_redis_store(
-    redis_client: redis.Redis, environment: Text, name: Text, **_
+    redis_client: redis.Redis, environment: Text, name: Text
 ) -> Tuple[Callable, Callable]:
     logging.info(f"initializing redis cache for {name}")
 

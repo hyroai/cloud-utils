@@ -108,13 +108,13 @@ def persistent_cache(
         return simple_decorator
 
     if environment in ("production", "staging", "development"):
-        _resolve_cache_store = redis_utils.make_redis_store(redis_client, environment)
+        get_cache_item, set_cache_item = redis_utils.make_redis_store(
+            redis_client, environment, name
+        )
     else:
-        _resolve_cache_store = file_store.make_file_store
-
-    get_cache_item, set_cache_item = _resolve_cache_store(
-        name, num_misses_to_trigger_sync
-    )
+        get_cache_item, set_cache_item = file_store.make_file_store(
+            name, num_misses_to_trigger_sync
+        )
 
     def decorator(func):
         @functools.wraps(func)
