@@ -16,6 +16,5 @@ setuptools.setup(
         "google-cloud-storage",
         "pymongo",
         "xmltodict",
-        "zipfile",
     ],
 )
