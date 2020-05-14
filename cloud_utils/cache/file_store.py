@@ -3,15 +3,17 @@ import logging
 import pathlib
 import pickle
 import timeit
+import zipfile
 from typing import Any, Callable, Dict, Text, Tuple
 
 import gamla
 import toolz
+import xmltodict
 from toolz import curried
 
 from cloud_utils import storage
 
-LOCAL_CACHE_PATH: pathlib.Path = pathlib.Path.home().joinpath(".nlu_cache")
+_LOCAL_CACHE_PATH: pathlib.Path = pathlib.Path.home().joinpath(".nlu_cache")
 
 
 def open_file(file_name: Text, mode="r"):
@@ -38,7 +40,7 @@ def _load_item(bucket_name: Text, hash_to_load: Text):
 
 
 def get_local_path_for_hash(object_hash: Text) -> pathlib.Path:
-    local_path = LOCAL_CACHE_PATH.joinpath(_hash_to_filename(object_hash))
+    local_path = _LOCAL_CACHE_PATH.joinpath(_hash_to_filename(object_hash))
     local_path.parent.mkdir(parents=True, exist_ok=True)
     return local_path
 
@@ -99,7 +101,7 @@ def _get_local_cache_filename(cache_name: Text) -> Text:
     return f"{cache_name}.pickle"
 
 
-_make_path = toolz.compose(LOCAL_CACHE_PATH.joinpath, _get_local_cache_filename)
+_make_path = toolz.compose(_LOCAL_CACHE_PATH.joinpath, _get_local_cache_filename)
 
 
 def _load_cache_from_local(cache_name: Text) -> Dict[Tuple, Any]:
@@ -108,10 +110,19 @@ def _load_cache_from_local(cache_name: Text) -> Dict[Tuple, Any]:
 
 
 def _save_cache_locally(cache_name: Text, cache: Dict[Tuple, Any]):
-    LOCAL_CACHE_PATH.mkdir(parents=True, exist_ok=True)
+    _LOCAL_CACHE_PATH.mkdir(parents=True, exist_ok=True)
     with _make_path(cache_name).open("wb") as local_cache_file:
         pickle.dump(cache, local_cache_file)
     logging.info(f"saved {len(cache)} cache items locally for {cache_name}")
+
+
+def load_xml_to_dict(xml_file: Text) -> Dict:
+    local_path = _LOCAL_CACHE_PATH.joinpath(xml_file)
+    if not local_path.exists():
+        storage.download_blob_to_file("hyro-bot-data", xml_file, local_path)
+    zip_xml = zipfile.ZipFile(local_path)
+    xml_string = zip_xml.open(zip_xml.namelist()[0]).read()
+    return xmltodict.parse(xml_string, attr_prefix="")
 
 
 def make_file_store(

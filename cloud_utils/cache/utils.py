@@ -13,7 +13,7 @@ import toolz
 
 from cloud_utils.cache import file_store, redis_utils
 
-HASH_VERSION = "hash_version"
+_HASH_VERSION_KEY = "hash_version"
 _LAST_RUN_TIMESTAMP = "last_run_timestamp"
 
 
@@ -23,7 +23,7 @@ def _write_to_versions_file(versions_file, deployment_name: Text, hash_to_load: 
         json.load(versions_file),
         deployment_name,
         {
-            HASH_VERSION: hash_to_load,
+            _HASH_VERSION_KEY: hash_to_load,
             _LAST_RUN_TIMESTAMP: datetime.datetime.now().isoformat(),
         },
     )
@@ -48,7 +48,7 @@ def auto_updating_cache(
         )
         <= datetime.timedelta(days=1)
     ):
-        return gamla.just(versions[deployment_name][HASH_VERSION])
+        return gamla.just(versions[deployment_name][_HASH_VERSION_KEY])
 
     logging.info(f"Updating version '{deployment_name}'")
     try:
@@ -62,7 +62,7 @@ def auto_updating_cache(
             )()
     except Exception as e:
         if deployment_name in versions:
-            hash_to_load = versions[deployment_name][HASH_VERSION]
+            hash_to_load = versions[deployment_name][_HASH_VERSION_KEY]
             logging.error(
                 f"Unable to update version '{deployment_name}'. Using old hash {hash_to_load} created on {versions[deployment_name][_LAST_RUN_TIMESTAMP]}."
             )
