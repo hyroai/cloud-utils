@@ -2,8 +2,8 @@ import json
 import logging
 from typing import Callable, Text, Tuple
 
+import gamla
 import redis
-import toolz
 
 
 def get_redis_client(host: Text, password: Text) -> redis.Redis:
@@ -16,7 +16,7 @@ def _get_redis_cache_key_name(environment: Text, cache_name: Text, key: Tuple) -
     return f"{environment}:{cache_name}:{json.dumps(key)}"
 
 
-@toolz.curry
+@gamla.curry
 def make_redis_store(
     redis_client: redis.Redis, environment: Text, name: Text
 ) -> Tuple[Callable, Callable]:

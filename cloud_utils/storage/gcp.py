@@ -1,7 +1,7 @@
 import pathlib
 from typing import Any, Text
 
-import toolz
+import gamla
 from google.cloud import storage
 
 
@@ -13,7 +13,7 @@ def upload_blob(bucket_name: Text, blob_name: Text, obj: Any):
     _get_blob(bucket_name, blob_name).upload_from_string(obj.to_json())
 
 
-@toolz.curry
+@gamla.curry
 def download_blob_as_string(bucket_name: Text, blob_name: Text):
     return _get_blob(bucket_name, blob_name).download_as_string().decode("utf-8")
 

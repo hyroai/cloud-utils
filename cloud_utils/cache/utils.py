@@ -17,7 +17,7 @@ _HASH_VERSION_KEY = "hash_version"
 _LAST_RUN_TIMESTAMP = "last_run_timestamp"
 
 
-@toolz.curry
+@gamla.curry
 def _write_to_versions_file(versions_file, deployment_name: Text, hash_to_load: Text):
     versions = toolz.assoc(
         json.load(versions_file),

@@ -16,6 +16,7 @@ from cloud_utils import storage
 _LOCAL_CACHE_PATH: pathlib.Path = pathlib.Path.home().joinpath(".nlu_cache")
 
 
+@gamla.curry
 def open_file(file_name: Text, mode="r"):
     return toolz.pipe(file_name, pathlib.Path, lambda p: p.open(mode=mode))
 
@@ -24,12 +25,12 @@ def _hash_to_filename(hash_str: Text) -> Text:
     return f"items/{hash_str}.json"
 
 
-@toolz.curry
+@gamla.curry
 def _save_to_blob(bucket_name: Text, item_name: Text, obj: Any):
     storage.upload_blob(bucket_name, _hash_to_filename(item_name), obj)
 
 
-@toolz.curry
+@gamla.curry
 def _load_item(bucket_name: Text, hash_to_load: Text):
     return toolz.pipe(
         hash_to_load,
@@ -45,7 +46,7 @@ def get_local_path_for_hash(object_hash: Text) -> pathlib.Path:
     return local_path
 
 
-@toolz.curry
+@gamla.curry
 def save_local(environment: Text, object_hash: Text, obj: Any) -> Any:
     if environment != "local":
         return
@@ -60,7 +61,7 @@ def save_local(environment: Text, object_hash: Text, obj: Any) -> Any:
     logging.info(f"Saved {object_hash} to local cache.")
 
 
-@toolz.curry
+@gamla.curry
 def load_by_hash(environment: Text, bucket_name: Text, object_hash: Text) -> dict:
     try:
         return toolz.pipe(
