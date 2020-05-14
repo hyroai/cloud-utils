@@ -3,6 +3,9 @@ from typing import Any, Dict, Iterable, Text
 import pymongo
 import toolz
 
+ASCENDING = pymongo.ASCENDING
+DESCENDING = pymongo.DESCENDING
+
 
 def get_client(mongodb_uri: Text, **kwargs):
     return pymongo.MongoClient(mongodb_uri, **kwargs)
