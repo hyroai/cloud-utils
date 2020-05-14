@@ -31,7 +31,12 @@ def _write_to_versions_file(versions_file, deployment_name: Text, hash_to_load: 
 
 
 def auto_updating_cache(
-    factory: Callable, update: bool, versions_file_path: Text, frame_level: int = 2
+    factory: Callable,
+    update: bool,
+    versions_file_path: Text,
+    environment: Text,
+    bucket_name: Text,
+    frame_level: int = 2,
 ) -> Callable:
     versions = toolz.pipe(versions_file_path, file_store.open_file, json.load)
 
@@ -52,14 +57,15 @@ def auto_updating_cache(
 
     logging.info(f"Updating version '{deployment_name}'")
     try:
+        _save_to_bucket_return_hash = file_store.save_to_bucket_return_hash(
+            environment, bucket_name
+        )
         if asyncio.iscoroutinefunction(factory):
             hash_to_load = gamla.run_sync(
-                gamla.compose_left(factory, file_store.save_to_bucket_return_hash)()
+                gamla.compose_left(factory, _save_to_bucket_return_hash)()
             )
         else:
-            hash_to_load = gamla.compose_left(
-                factory, file_store.save_to_bucket_return_hash
-            )()
+            hash_to_load = gamla.compose_left(factory, _save_to_bucket_return_hash)()
     except Exception as e:
         if deployment_name in versions:
             hash_to_load = versions[deployment_name][_HASH_VERSION_KEY]
