@@ -31,13 +31,13 @@ def _write_to_versions_file(versions_file, deployment_name: Text, hash_to_load: 
 
 
 def auto_updating_cache(
-    factory: Callable, update: bool, versions_file_path: Text
+    factory: Callable, update: bool, versions_file_path: Text, frame_level: int = 2
 ) -> Callable:
     versions = toolz.pipe(versions_file_path, file_store.open_file, json.load)
 
     # Deployment name is the concatenation of caller's module name and factory's function name.
     deployment_name = (
-        f"{inspect.stack()[1].frame.f_locals['__name__']}.{factory.__name__}"
+        f"{inspect.stack()[frame_level].frame.f_code.co_filename}::{factory.__name__}"
     )
 
     if deployment_name in versions and (
