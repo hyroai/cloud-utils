@@ -18,7 +18,7 @@ _LAST_RUN_TIMESTAMP = "last_run_timestamp"
 
 
 @gamla.curry
-def _write_to_versions_file(versions_file, deployment_name: Text, hash_to_load: Text):
+def _write_to_versions_file(deployment_name: Text, hash_to_load: Text, versions_file):
     versions = toolz.assoc(
         json.load(versions_file),
         deployment_name,
@@ -27,7 +27,9 @@ def _write_to_versions_file(versions_file, deployment_name: Text, hash_to_load: 
             _LAST_RUN_TIMESTAMP: datetime.datetime.now().isoformat(),
         },
     )
+    versions_file.seek(0)
     json.dump(versions, versions_file, indent=2)
+    versions_file.truncate()
 
 
 def auto_updating_cache(
@@ -42,7 +44,7 @@ def auto_updating_cache(
 
     # Deployment name is the concatenation of caller's module name and factory's function name.
     deployment_name = (
-        f"{inspect.stack()[frame_level].frame.f_code.co_filename}::{factory.__name__}"
+        f"{inspect.stack()[frame_level].frame.f_globals['__name__']}.{factory.__name__}"
     )
 
     if deployment_name in versions and (
@@ -77,7 +79,7 @@ def auto_updating_cache(
 
     toolz.pipe(
         versions_file_path,
-        file_store.open_file("r+"),
+        file_store.open_file(mode="r+"),
         _write_to_versions_file(deployment_name, hash_to_load),
     )
 
