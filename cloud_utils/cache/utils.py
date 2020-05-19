@@ -65,7 +65,7 @@ def auto_updating_cache(
             gamla.alljuxt(
                 gamla.inside(deployment_name),
                 gamla.anyjuxt(
-                    gamla.compose_left(gamla.just(update), operator.not_),
+                    gamla.just(not update),
                     gamla.compose_left(
                         curried.get_in([deployment_name, _LAST_RUN_TIMESTAMP]),
                         datetime.datetime.fromisoformat,
