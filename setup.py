@@ -16,5 +16,8 @@ setuptools.setup(
         "google-cloud-storage",
         "pymongo",
         "xmltodict",
+        "gamla",
+        "kubernetes",
+        "toolz",
     ],
 )
