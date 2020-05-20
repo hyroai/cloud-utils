@@ -1,15 +1,15 @@
-import asyncio
 import datetime
 import functools
 import inspect
 import json
-import logging
-from typing import Callable, Text
+from typing import Any, Callable, Dict, Text
 
 import async_lru
 import gamla
 import redis
 import toolz
+from toolz import curried
+from toolz.curried import operator
 
 from cloud_utils.cache import file_store, redis_utils
 
@@ -32,6 +32,34 @@ def _write_to_versions_file(deployment_name: Text, hash_to_load: Text, versions_
     versions_file.truncate()
 
 
+@gamla.curry
+def _write_hash_to_versions_file(
+    versions_file_name: Text, deployment_name: Text, hash_to_load: Text
+):
+    return toolz.pipe(
+        versions_file_name,
+        file_store.open_file(mode="r+"),
+        _write_to_versions_file(deployment_name, hash_to_load),
+    )
+
+
+@gamla.curry
+def _should_update(
+    deployment_name: Text, update: bool, versions: Dict[Text, Any]
+) -> bool:
+    return gamla.anyjuxt(
+        gamla.compose_left(gamla.inside(deployment_name), operator.not_),
+        gamla.alljuxt(
+            gamla.just(update),
+            gamla.compose_left(
+                curried.get_in([deployment_name, _LAST_RUN_TIMESTAMP]),
+                datetime.datetime.fromisoformat,
+                lambda x: datetime.datetime.now() - x > datetime.timedelta(days=1),
+            ),
+        ),
+    )
+
+
 def auto_updating_cache(
     factory: Callable,
     update: bool,
@@ -40,50 +68,29 @@ def auto_updating_cache(
     bucket_name: Text,
     frame_level: int = 2,
 ) -> Callable:
-    versions = toolz.pipe(versions_file_path, file_store.open_file, json.load)
 
     # Deployment name is the concatenation of caller's module name and factory's function name.
     deployment_name = (
         f"{inspect.stack()[frame_level].frame.f_globals['__name__']}.{factory.__name__}"
     )
 
-    if deployment_name in versions and (
-        not update
-        or datetime.datetime.now()
-        - datetime.datetime.fromisoformat(
-            versions[deployment_name][_LAST_RUN_TIMESTAMP]
-        )
-        <= datetime.timedelta(days=1)
-    ):
-        return gamla.just(versions[deployment_name][_HASH_VERSION_KEY])
-
-    logging.info(f"Updating version '{deployment_name}'")
-    try:
-        _save_to_bucket_return_hash = file_store.save_to_bucket_return_hash(
-            environment, bucket_name
-        )
-        if asyncio.iscoroutinefunction(factory):
-            hash_to_load = gamla.run_sync(
-                gamla.compose_left(factory, _save_to_bucket_return_hash)()
-            )
-        else:
-            hash_to_load = gamla.compose_left(factory, _save_to_bucket_return_hash)()
-    except Exception as e:
-        if deployment_name in versions:
-            hash_to_load = versions[deployment_name][_HASH_VERSION_KEY]
-            logging.error(
-                f"Unable to update version '{deployment_name}'. Using old hash {hash_to_load} created on {versions[deployment_name][_LAST_RUN_TIMESTAMP]}."
-            )
-        else:
-            raise e
-
-    toolz.pipe(
-        versions_file_path,
-        file_store.open_file(mode="r+"),
-        _write_to_versions_file(deployment_name, hash_to_load),
+    return gamla.compose_left(
+        gamla.just(versions_file_path),
+        file_store.open_file,
+        json.load,
+        gamla.ternary(
+            _should_update(deployment_name, update),
+            gamla.compose_left(
+                gamla.ignore_input(factory),
+                file_store.save_to_bucket_return_hash(environment, bucket_name),
+                curried.do(
+                    _write_hash_to_versions_file(versions_file_path, deployment_name)
+                ),
+                gamla.log_text(f"Version '{deployment_name}' has been updated"),
+            ),
+            curried.get_in([deployment_name, _HASH_VERSION_KEY]),
+        ),
     )
-
-    return gamla.just(hash_to_load)
 
 
 _ORDERED_SEQUENCE_TYPES = (list, tuple)
