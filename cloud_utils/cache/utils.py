@@ -2,7 +2,7 @@ import datetime
 import functools
 import inspect
 import json
-from typing import Callable, Text
+from typing import Any, Callable, Dict, Text
 
 import async_lru
 import gamla
@@ -43,6 +43,23 @@ def _write_hash_to_versions_file(
     )
 
 
+@gamla.curry
+def _should_update(
+    deployment_name: Text, update: bool, versions: Dict[Text, Any]
+) -> bool:
+    return gamla.anyjuxt(
+        gamla.compose_left(gamla.inside(deployment_name), operator.not_),
+        gamla.alljuxt(
+            gamla.just(update),
+            gamla.compose_left(
+                curried.get_in([deployment_name, _LAST_RUN_TIMESTAMP]),
+                datetime.datetime.fromisoformat,
+                lambda x: datetime.datetime.now() - x > datetime.timedelta(days=1),
+            ),
+        ),
+    )
+
+
 def auto_updating_cache(
     factory: Callable,
     update: bool,
@@ -62,19 +79,7 @@ def auto_updating_cache(
         file_store.open_file,
         json.load,
         gamla.ternary(
-            gamla.alljuxt(
-                gamla.inside(deployment_name),
-                gamla.anyjuxt(
-                    gamla.just(not update),
-                    gamla.compose_left(
-                        curried.get_in([deployment_name, _LAST_RUN_TIMESTAMP]),
-                        datetime.datetime.fromisoformat,
-                        lambda x: datetime.datetime.now() - x
-                        <= datetime.timedelta(days=1),
-                    ),
-                ),
-            ),
-            gamla.compose_left(curried.get_in([deployment_name, _HASH_VERSION_KEY])),
+            _should_update(deployment_name, update),
             gamla.compose_left(
                 gamla.ignore_input(factory),
                 file_store.save_to_bucket_return_hash(environment, bucket_name),
@@ -83,6 +88,7 @@ def auto_updating_cache(
                 ),
                 gamla.log_text(f"Version '{deployment_name}' has been updated"),
             ),
+            curried.get_in([deployment_name, _HASH_VERSION_KEY]),
         ),
     )
 
