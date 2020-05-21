@@ -1,7 +1,10 @@
-from typing import Any, Dict, Iterable, Text
+from typing import Any, Callable, Dict, Iterable, Text, Tuple
+
+import pymongo
+import toolz
+from toolz import curried
 
 import gamla
-import pymongo
 
 ASCENDING = pymongo.ASCENDING
 DESCENDING = pymongo.DESCENDING
@@ -32,3 +35,17 @@ def sort(key, direction, collection):
 @gamla.curry
 def count(query, collection):
     return collection.count_documents(query)
+
+
+def add_match_filter(f: Callable) -> Tuple[Dict, ...]:
+    return toolz.compose_left(
+        toolz.first,
+        curried.get("$match"),
+        f,
+        query_to_match_aggregation_stage,
+        gamla.wrap_tuple,
+    )
+
+
+def query_to_match_aggregation_stage(query):
+    return {"$match": query}
