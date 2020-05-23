@@ -9,8 +9,12 @@ import toolz
 from kubernetes import client, config
 from kubernetes.client import rest
 
+repo_name = os.getenv("CI_REGISTRY")
+if not repo_name:
+    raise Exception("CI_REGISTRY is not set")
 
-def _get_kubernetes_client() -> client.CoreV1Api:
+
+def _init_kubernetes_client():
     kube_config_file = Path("~/.kube/config").expanduser()
     if not kube_config_file.exists():
         config_decoded = base64.b64decode(os.environ["KUBE_CONFIG"])
@@ -18,10 +22,10 @@ def _get_kubernetes_client() -> client.CoreV1Api:
         kube_config_file.touch(exist_ok=True)
         kube_config_file.write_bytes(config_decoded)
     config.load_kube_config()
-    return client.CoreV1Api()
 
 
-def _create_secret(api_instance: client.CoreV1Api, secret: Dict[Text, Text]):
+def _create_secret(secret: Dict[Text, Text]):
+    api_instance = client.CoreV1Api()
     try:
         api_instance.read_namespaced_secret(
             name=secret["secret_name"], namespace="default"
@@ -45,8 +49,7 @@ def _create_secret(api_instance: client.CoreV1Api, secret: Dict[Text, Text]):
 
 
 @gamla.curry
-def _create_cron_job(
-        api_instance: client.CoreV1Api,
+def create_cron_job(
         pod_name: Text,
         image: Text,
         env_variables: List[Dict[Text, Text]],
@@ -58,13 +61,14 @@ def _create_cron_job(
 ) -> Text:
     if secrets:
         for secret in secrets:
-            _create_secret(api_instance, secret)
+            _create_secret(secret)
 
     cron_job = client.V1beta1CronJob(
         api_version="batch/v1beta1",
         kind="CronJob",
         metadata=client.V1ObjectMeta(
-            name=f'{pod_name}-cronjob'
+            name=f'{pod_name}-cronjob',
+            labels={"repository": repo_name}
         ), spec=client.V1beta1CronJobSpec(
             schedule=schedule,
             job_template=client.V1beta1JobTemplateSpec(
@@ -79,12 +83,14 @@ def _create_cron_job(
         )
     )
     try:
-        api_response = client.BatchV1beta1Api().create_namespaced_cron_job(
-            namespace="default",
-            body=cron_job,
-            pretty='true',
-            dry_run='All' if dry_run else None
-        )
+        options = {
+            "namespace": "default",
+            "body": cron_job,
+            "pretty": "true",
+        }
+        if dry_run:
+            options["dry_run"] = 'All'
+        api_response = client.BatchV1beta1Api().create_namespaced_cron_job(**options)
         logging.info(f"CronJob created: {api_response}")
     except rest.ApiException as e:
         logging.error(f"Error creating CronJob: {e}")
@@ -152,12 +158,24 @@ def _add_volume_from_secret(secret: Dict[Text, Text]):
     )
 
 
-make_deploy_cron_job = gamla.compose_left(
-    _get_kubernetes_client,
-    toolz.juxt(_create_cron_job),
-    gamla.star(gamla.compose_left),
-)
+def delete_old_cron_jobs(dry_run: bool = False):
+    api_instance = client.BatchV1beta1Api()
+    cron_jobs = api_instance.list_namespaced_cron_job(
+            namespace="default",
+            label_selector=f"repository={repo_name}",
+        )
+    for cron_job in cron_jobs.items:
+        options = {
+            "namespace": "default",
+            "name": cron_job.metadata.name,
+        }
+        if dry_run:
+            options["dry_run"] = 'All'
+        api_instance.delete_namespaced_cron_job(**options)
 
 
 def _get_repo_name_from_image(image: Text):
     return image.split(":")[0].split("/")[-1]
+
+
+_init_kubernetes_client()
