@@ -9,10 +9,6 @@ import toolz
 from kubernetes import client, config
 from kubernetes.client import rest
 
-repo_name = os.getenv("CI_REGISTRY")
-if not repo_name:
-    raise Exception("CI_REGISTRY is not set")
-
 
 def _init_kubernetes_client():
     kube_config_file = Path("~/.kube/config").expanduser()
@@ -50,14 +46,15 @@ def _create_secret(secret: Dict[Text, Text]):
 
 @gamla.curry
 def create_cron_job(
-        pod_name: Text,
-        image: Text,
-        env_variables: List[Dict[Text, Text]],
-        secrets: List[Dict[Text, Text]],
-        command: List[Text],
-        args: List[Text],
-        schedule: Text,
-        dry_run: bool,
+    pod_name: Text,
+    image: Text,
+    env_variables: List[Dict[Text, Text]],
+    secrets: List[Dict[Text, Text]],
+    command: List[Text],
+    args: List[Text],
+    schedule: Text,
+    repo_name: Text,
+    dry_run: bool,
 ) -> Text:
     if secrets:
         for secret in secrets:
@@ -67,9 +64,9 @@ def create_cron_job(
         api_version="batch/v1beta1",
         kind="CronJob",
         metadata=client.V1ObjectMeta(
-            name=f'{pod_name}-cronjob',
-            labels={"repository": repo_name}
-        ), spec=client.V1beta1CronJobSpec(
+            name=f"{pod_name}-cronjob", labels={"repository": repo_name}
+        ),
+        spec=client.V1beta1CronJobSpec(
             schedule=schedule,
             job_template=client.V1beta1JobTemplateSpec(
                 spec=client.V1JobSpec(
@@ -80,16 +77,12 @@ def create_cron_job(
                     )
                 )
             ),
-        )
+        ),
     )
     try:
-        options = {
-            "namespace": "default",
-            "body": cron_job,
-            "pretty": "true",
-        }
+        options = {"namespace": "default", "body": cron_job, "pretty": "true"}
         if dry_run:
-            options["dry_run"] = 'All'
+            options["dry_run"] = "All"
         api_response = client.BatchV1beta1Api().create_namespaced_cron_job(**options)
         logging.info(f"CronJob created: {api_response}")
     except rest.ApiException as e:
@@ -99,12 +92,12 @@ def create_cron_job(
 
 
 def _get_pod_manifest(
-        pod_name: Text,
-        image: Text,
-        env_variables: List[Dict[Text, Text]],
-        secrets: List[Dict[Text, Text]],
-        command: List[Text],
-        args: List[Text],
+    pod_name: Text,
+    image: Text,
+    env_variables: List[Dict[Text, Text]],
+    secrets: List[Dict[Text, Text]],
+    command: List[Text],
+    args: List[Text],
 ):
     return toolz.pipe(
         (pod_name, image),
@@ -158,19 +151,15 @@ def _add_volume_from_secret(secret: Dict[Text, Text]):
     )
 
 
-def delete_old_cron_jobs(dry_run: bool = False):
+def delete_old_cron_jobs(repo_name: Text, dry_run: bool = False):
     api_instance = client.BatchV1beta1Api()
     cron_jobs = api_instance.list_namespaced_cron_job(
-            namespace="default",
-            label_selector=f"repository={repo_name}",
-        )
+        namespace="default", label_selector=f"repository={repo_name}"
+    )
     for cron_job in cron_jobs.items:
-        options = {
-            "namespace": "default",
-            "name": cron_job.metadata.name,
-        }
+        options = {"namespace": "default", "name": cron_job.metadata.name}
         if dry_run:
-            options["dry_run"] = 'All'
+            options["dry_run"] = "All"
         api_instance.delete_namespaced_cron_job(**options)
 
 
