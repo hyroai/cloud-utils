@@ -17,5 +17,7 @@ setuptools.setup(
         "pymongo",
         "xmltodict",
         "gamla",
+        "kubernetes",
+        "toolz",
     ],
 )
