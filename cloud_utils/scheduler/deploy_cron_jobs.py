@@ -1,7 +1,8 @@
 import argparse
 import asyncio
 import json
-from typing import Dict, Iterable
+import sys
+from typing import Dict, Iterable, Optional, Sequence
 
 from cloud_utils.scheduler import kubernetes_connector
 
@@ -21,7 +22,8 @@ async def deploy_schedule(
         )
 
 
-if __name__ == "__main__":
+def main(argv: Optional[Sequence[str]] = None) -> int:
+    argv = argv if argv is not None else sys.argv[1:]
     parser = argparse.ArgumentParser(
         description="Creates k8s CronJobs from schedule.json file"
     )
@@ -36,7 +38,12 @@ if __name__ == "__main__":
         help="Path to schedule file, defaults to `schedule.json`.",
         default="schedule.json",
     )
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
     asyncio.get_event_loop().run_until_complete(
         deploy_schedule(json.load(open(args.schedule)), args.repo)
     )
+    return 0
+
+
+if __name__ == "__main__":
+    exit(main())
