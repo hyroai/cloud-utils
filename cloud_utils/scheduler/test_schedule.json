@@ -1,0 +1,31 @@
+[
+  {
+    "schedule": "0 8 * * *",
+    "run": {
+      "pod_name": "insight-reports",
+      "image": "registry.gitlab.com/airbud/analysis:latest",
+      "env_variables": [
+        {
+          "name": "GOOGLE_APPLICATION_CREDENTIALS",
+          "value": "/var/secrets/gcp/credentials.json"
+        },
+        {
+          "name": "STORAGE_PROVIDER",
+          "value": "azure"
+        }
+      ],
+      "secrets": [
+        {
+          "data": {
+            "credentials.json": ""
+          },
+          "mount_path": "/var/secrets/gcp",
+          "secret_name": "analysis-gcp-credentials",
+          "volume_name": "gcp-credentials"
+        }
+      ],
+      "command": ["python", "default_insight_reports.py"],
+      "args": []
+    }
+  }
+]
