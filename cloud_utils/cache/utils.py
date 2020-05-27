@@ -44,7 +44,6 @@ def _write_hash_to_versions_file(
     )
 
 
-@gamla.curry
 def _should_update(deployment_name: Text, update: bool) -> bool:
     return gamla.anyjuxt(
         gamla.compose_left(gamla.inside(deployment_name), operator.not_),
