@@ -1,10 +1,9 @@
 from typing import Any, Callable, Dict, Iterable, Text, Tuple
 
+import gamla
 import pymongo
 import toolz
 from toolz import curried
-
-import gamla
 
 ASCENDING = pymongo.ASCENDING
 DESCENDING = pymongo.DESCENDING

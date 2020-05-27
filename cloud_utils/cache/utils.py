@@ -2,7 +2,8 @@ import datetime
 import functools
 import inspect
 import json
-from typing import Any, Callable, Dict, Text
+import logging
+from typing import Callable, Text
 
 import async_lru
 import gamla
@@ -44,9 +45,7 @@ def _write_hash_to_versions_file(
 
 
 @gamla.curry
-def _should_update(
-    deployment_name: Text, update: bool, versions: Dict[Text, Any]
-) -> bool:
+def _should_update(deployment_name: Text, update: bool) -> bool:
     return gamla.anyjuxt(
         gamla.compose_left(gamla.inside(deployment_name), operator.not_),
         gamla.alljuxt(
@@ -74,6 +73,7 @@ def auto_updating_cache(
         f"{inspect.stack()[frame_level].frame.f_globals['__name__']}.{factory.__name__}"
     )
 
+    logging.info(f"Fetching deployment name '{deployment_name}'")
     return gamla.compose_left(
         gamla.just(versions_file_path),
         file_store.open_file,
