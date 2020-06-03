@@ -89,7 +89,7 @@ def load_file_from_bucket(bucket_name: Text, file_name: Text):
 
 
 def save_to_bucket_return_hash(environment: Text, bucket_name: Text):
-    return toolz.compose_left(
+    return gamla.compose_left(
         gamla.pair_with(gamla.compute_stable_json_hash),
         curried.do(gamla.star(_save_to_blob(bucket_name))),
         curried.do(gamla.star(save_local(environment))),
