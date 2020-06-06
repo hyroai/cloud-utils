@@ -92,9 +92,6 @@ def auto_updating_cache(
     )
 
 
-_ORDERED_SEQUENCE_TYPES = (list, tuple)
-
-
 def _get_origin_type(type_hint):
     """Get native type for subscripted type hints, e.g. List[int] -> list, Tuple[float] -> tuple. """
     try:
