@@ -10,12 +10,15 @@ import gamla
 import redis
 import toolz
 from toolz import curried
-from toolz.curried import operator
 
 from cloud_utils.cache import file_store, redis_utils
 
 _HASH_VERSION_KEY = "hash_version"
 _LAST_RUN_TIMESTAMP = "last_run_timestamp"
+
+
+class VersionNotFound(Exception):
+    pass
 
 
 @gamla.curry
@@ -84,10 +87,9 @@ def auto_updating_cache(
                 ),
                 gamla.log_text(f"Version '{deployment_name}' has been updated"),
             ),
-            gamla.ternary(
-                gamla.compose_left(gamla.inside(deployment_name), operator.not_),
-                gamla.make_raise(
-                    KeyError(f"Version not found for deployment '{deployment_name}'")
+            gamla.compose_left(
+                gamla.check(
+                    gamla.inside(deployment_name), VersionNotFound(deployment_name)
                 ),
                 curried.get_in([deployment_name, _HASH_VERSION_KEY]),
             ),
