@@ -10,6 +10,7 @@ import gamla
 import redis
 import toolz
 from toolz import curried
+from toolz.curried import operator
 
 from cloud_utils.cache import file_store, redis_utils
 
@@ -52,8 +53,13 @@ def _should_update(deployment_name: Text, update: bool) -> bool:
         gamla.just(update),
         gamla.compose_left(
             curried.get_in([deployment_name, _LAST_RUN_TIMESTAMP]),
-            datetime.datetime.fromisoformat,
-            lambda x: datetime.datetime.now() - x > datetime.timedelta(days=1),
+            gamla.anyjuxt(
+                operator.eq(None),
+                gamla.compose_left(
+                    datetime.datetime.fromisoformat,
+                    lambda x: datetime.datetime.now() - x > datetime.timedelta(days=1),
+                ),
+            ),
         ),
     )
 
