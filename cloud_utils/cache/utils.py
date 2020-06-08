@@ -45,15 +45,12 @@ def _write_hash_to_versions_file(
 
 
 def _should_update(deployment_name: Text, update: bool) -> bool:
-    return gamla.anyjuxt(
-        gamla.compose_left(gamla.inside(deployment_name), operator.not_),
-        gamla.alljuxt(
-            gamla.just(update),
-            gamla.compose_left(
-                curried.get_in([deployment_name, _LAST_RUN_TIMESTAMP]),
-                datetime.datetime.fromisoformat,
-                lambda x: datetime.datetime.now() - x > datetime.timedelta(days=1),
-            ),
+    return gamla.alljuxt(
+        gamla.just(update),
+        gamla.compose_left(
+            curried.get_in([deployment_name, _LAST_RUN_TIMESTAMP]),
+            datetime.datetime.fromisoformat,
+            lambda x: datetime.datetime.now() - x > datetime.timedelta(days=1),
         ),
     )
 
@@ -87,7 +84,13 @@ def auto_updating_cache(
                 ),
                 gamla.log_text(f"Version '{deployment_name}' has been updated"),
             ),
-            curried.get_in([deployment_name, _HASH_VERSION_KEY]),
+            gamla.ternary(
+                gamla.compose_left(gamla.inside(deployment_name), operator.not_),
+                gamla.make_raise(
+                    KeyError(f"Version not found for deployment '{deployment_name}'")
+                ),
+                curried.get_in([deployment_name, _HASH_VERSION_KEY]),
+            ),
         ),
     )
 
