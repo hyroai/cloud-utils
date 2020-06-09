@@ -41,6 +41,9 @@ def _write_to_versions_file(deployment_name: Text, hash_to_load: Text, versions_
 def _write_hash_to_versions_file(
     versions_file_name: Text, deployment_name: Text, hash_to_load: Text
 ):
+    logging.error(
+        f"_writing_hash_to_versions_file(versions_file_name={versions_file_name}, deployment_name={deployment_name}, hash_to_load={hash_to_load}"
+    )
     return toolz.pipe(
         versions_file_name,
         file_store.open_file(mode="r+"),
@@ -73,6 +76,9 @@ def auto_updating_cache(
     frame_level: int = 2,
 ) -> Callable:
 
+    logging.error(
+        f"auto_updating_cache(update={update}, versions_file_path={versions_file_path}, environment={environment}, bucket_name={bucket_name})"
+    )
     # Deployment name is the concatenation of caller's module name and factory's function name.
     deployment_name = (
         f"{inspect.stack()[frame_level].frame.f_globals['__name__']}.{factory.__name__}"
