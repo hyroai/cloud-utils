@@ -88,13 +88,8 @@ def auto_updating_cache(
             gamla.compose_left(
                 gamla.ignore_input(factory),
                 file_store.save_to_bucket_return_hash(environment, bucket_name),
-                gamla.athrottle(
-                    1,
-                    curried.do(
-                        _write_hash_to_versions_file(
-                            versions_file_path, deployment_name
-                        )
-                    ),
+                curried.do(
+                    _write_hash_to_versions_file(versions_file_path, deployment_name)
                 ),
                 gamla.log_text(f"Version '{deployment_name}' has been updated"),
             ),
