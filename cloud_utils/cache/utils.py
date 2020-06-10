@@ -106,7 +106,7 @@ def auto_updating_cache(
     )
 
 
-def _get_origin_type(type_srhint):
+def _get_origin_type(type_hint):
     """Get native type for subscripted type hints, e.g. List[int] -> list, Tuple[float] -> tuple. """
     try:
         return type_hint.__origin__
