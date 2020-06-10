@@ -24,14 +24,17 @@ class VersionNotFound(Exception):
 
 @gamla.curry
 def _write_to_versions_file(deployment_name: Text, hash_to_load: Text, versions_file):
-    versions = toolz.assoc(
-        json.load(versions_file),
-        deployment_name,
+    versions = toolz.pipe(
         {
             _HASH_VERSION_KEY: hash_to_load,
             _LAST_RUN_TIMESTAMP: datetime.datetime.now().isoformat(),
         },
+        curried.assoc(json.load(versions_file), deployment_name),
+        dict.items,
+        curried.sorted,
+        dict,
     )
+
     versions_file.seek(0)
     json.dump(versions, versions_file, indent=2)
     versions_file.truncate()
@@ -103,7 +106,7 @@ def auto_updating_cache(
     )
 
 
-def _get_origin_type(type_hint):
+def _get_origin_type(type_srhint):
     """Get native type for subscripted type hints, e.g. List[int] -> list, Tuple[float] -> tuple. """
     try:
         return type_hint.__origin__
