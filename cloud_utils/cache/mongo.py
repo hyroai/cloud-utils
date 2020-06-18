@@ -14,25 +14,31 @@ def get_client(mongodb_uri: Text, **kwargs):
 
 
 @gamla.curry
-def aggregate(collection, aggregation: Iterable[Dict[Text, Any]]):
+def aggregate(
+    collection: pymongo.collection.Collection, aggregation: Iterable[Dict[Text, Any]]
+) -> Tuple[Dict, ...]:
     return collection.aggregate(list(aggregation), allowDiskUse=True)
 
 
 @gamla.curry
-def find(query, collection):
+def find(
+    collection: pymongo.collection.Collection, query: Dict[Text, Any]
+) -> Tuple[Dict, ...]:
     return collection.find(query)
 
 
-find_all = find({})
+find_all = find(query={})
 
 
 @gamla.curry
-def sort(key, direction, collection):
+def sort(
+    collection: pymongo.collection.Collection, key: Text, direction: int
+) -> Tuple[Dict, ...]:
     return collection.sort(key, direction)
 
 
 @gamla.curry
-def count(query, collection):
+def count(collection: pymongo.collection.Collection, query: Dict[Text, Any]) -> int:
     return collection.count_documents(query)
 
 
@@ -46,5 +52,5 @@ def add_match_filter(f: Callable) -> Tuple[Dict, ...]:
     )
 
 
-def query_to_match_aggregation_stage(query):
+def query_to_match_aggregation_stage(query: Dict[Text, Any]) -> Dict[Text, Any]:
     return {"$match": query}
