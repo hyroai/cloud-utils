@@ -51,8 +51,10 @@ def _write_hash_to_versions_file(
     )
 
 
-def _should_update(deployment_name: Text, update: bool) -> bool:
-    return gamla.alljuxt(
+def _should_update(deployment_name: Text, update: bool, force_update: bool) -> bool:
+    return gamla.anyjuxt(
+        gamla.just(force_update),
+        gamla.alljuxt(
         gamla.just(update),
         gamla.compose_left(
             curried.get_in([deployment_name, _LAST_RUN_TIMESTAMP]),
@@ -65,6 +67,7 @@ def _should_update(deployment_name: Text, update: bool) -> bool:
             ),
         ),
     )
+    )
 
 
 def auto_updating_cache(
@@ -73,6 +76,7 @@ def auto_updating_cache(
     versions_file_path: Text,
     environment: Text,
     bucket_name: Text,
+    force_update: bool,
     frame_level: int = 2,
 ) -> Callable:
 
@@ -87,7 +91,7 @@ def auto_updating_cache(
         file_store.open_file,
         json.load,
         gamla.ternary(
-            _should_update(deployment_name, update),
+            _should_update(deployment_name, update, force_update),
             gamla.compose_left(
                 gamla.ignore_input(factory),
                 file_store.save_to_bucket_return_hash(environment, bucket_name),
