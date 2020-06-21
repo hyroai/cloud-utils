@@ -22,12 +22,12 @@ def aggregate(
 
 @gamla.curry
 def find(
-    collection: pymongo.collection.Collection, query: Dict[Text, Any]
+    query: Dict[Text, Any], collection: pymongo.collection.Collection
 ) -> Tuple[Dict, ...]:
     return collection.find(query)
 
 
-find_all = find(query={})
+find_all = find({})
 
 
 @gamla.curry
