@@ -55,18 +55,19 @@ def _should_update(deployment_name: Text, update: bool, force_update: bool) -> b
     return gamla.anyjuxt(
         gamla.just(force_update),
         gamla.alljuxt(
-        gamla.just(update),
-        gamla.compose_left(
-            curried.get_in([deployment_name, _LAST_RUN_TIMESTAMP]),
-            gamla.anyjuxt(
-                operator.eq(None),
-                gamla.compose_left(
-                    datetime.datetime.fromisoformat,
-                    lambda x: datetime.datetime.now() - x > datetime.timedelta(days=1),
+            gamla.just(update),
+            gamla.compose_left(
+                curried.get_in([deployment_name, _LAST_RUN_TIMESTAMP]),
+                gamla.anyjuxt(
+                    operator.eq(None),
+                    gamla.compose_left(
+                        datetime.datetime.fromisoformat,
+                        lambda x: datetime.datetime.now() - x
+                        > datetime.timedelta(days=1),
+                    ),
                 ),
             ),
         ),
-    )
     )
 
 
