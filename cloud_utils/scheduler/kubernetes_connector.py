@@ -25,7 +25,7 @@ def _create_secret(secret: Dict[Text, Text]):
     api_instance = client.CoreV1Api()
     try:
         api_instance.read_namespaced_secret(
-            name=secret["secret_name"], namespace="default"
+            name=secret["secret_name"], namespace="default",
         )
     except rest.ApiException as e:
         if e.status != 404:
@@ -37,7 +37,7 @@ def _create_secret(secret: Dict[Text, Text]):
                 kind="Secret",
                 metadata={"name": secret["secret_name"], "type": "Opaque"},
                 data=toolz.valmap(
-                    lambda s: base64.b64encode(s.encode()).decode(), secret["data"]
+                    lambda s: base64.b64encode(s.encode()).decode(), secret["data"],
                 ),
             ),
             namespace="default",
@@ -65,7 +65,7 @@ def create_cron_job(
         api_version="batch/v1beta1",
         kind="CronJob",
         metadata=client.V1ObjectMeta(
-            name=f"{pod_name}-cronjob", labels={"repository": repo_name}
+            name=f"{pod_name}-cronjob", labels={"repository": repo_name},
         ),
         spec=client.V1beta1CronJobSpec(
             schedule=schedule,
@@ -73,10 +73,10 @@ def create_cron_job(
                 spec=client.V1JobSpec(
                     template=client.V1PodTemplateSpec(
                         spec=_get_pod_manifest(
-                            pod_name, image, env_variables, secrets, command, args
-                        )
-                    )
-                )
+                            pod_name, image, env_variables, secrets, command, args,
+                        ),
+                    ),
+                ),
             ),
         ),
     )
@@ -105,7 +105,7 @@ def _get_pod_manifest(
         gamla.star(_make_base_pod_spec),
         gamla.assoc_in(keys=["containers", 0, "env"], value=env_variables),
         toolz.compose_left(
-            toolz.juxt(*map(_add_volume_from_secret, secrets)), toolz.merge
+            toolz.juxt(*map(_add_volume_from_secret, secrets)), toolz.merge,
         )
         if secrets
         else toolz.identity,
@@ -122,7 +122,7 @@ def _make_base_pod_spec(pod_name: Text, image: Text):
     return {
         "containers": [{"image": image, "name": f"{pod_name}-container"}],
         "imagePullSecrets": [
-            {"name": f"{_get_repo_name_from_image(image)}-gitlab-creds"}
+            {"name": f"{_get_repo_name_from_image(image)}-gitlab-creds"},
         ],
         "restartPolicy": "Never",
     }
@@ -137,7 +137,7 @@ def _add_volume_from_secret(secret: Dict[Text, Text]):
                     "name": secret["volume_name"],
                     "mountPath": secret["mount_path"],
                     "readOnly": True,
-                }
+                },
             ],
         ),
         gamla.assoc_in(
@@ -146,7 +146,7 @@ def _add_volume_from_secret(secret: Dict[Text, Text]):
                 {
                     "name": secret["volume_name"],
                     "secret": {"secretName": secret["secret_name"]},
-                }
+                },
             ],
         ),
     )
@@ -158,7 +158,7 @@ def delete_old_cron_jobs(repo_name: Text, dry_run: bool = False):
     if dry_run:
         options["dry_run"] = "All"
     api_instance.delete_collection_namespaced_cron_job(**options)
-    logging.info(f"Deleting CronJobs. Waiting 2 min for deletion to complete...")
+    logging.info("Deleting CronJobs. Waiting 2 min for deletion to complete...")
     # TODO(Erez): Find an event driven way to wait for this
     time.sleep(2 * 60)
 

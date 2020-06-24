@@ -15,14 +15,14 @@ def get_client(mongodb_uri: Text, **kwargs):
 
 @gamla.curry
 def aggregate(
-    collection: pymongo.collection.Collection, aggregation: Iterable[Dict[Text, Any]]
+    collection: pymongo.collection.Collection, aggregation: Iterable[Dict[Text, Any]],
 ) -> Tuple[Dict, ...]:
     return collection.aggregate(list(aggregation), allowDiskUse=True)
 
 
 @gamla.curry
 def find(
-    query: Dict[Text, Any], collection: pymongo.collection.Collection
+    query: Dict[Text, Any], collection: pymongo.collection.Collection,
 ) -> Tuple[Dict, ...]:
     return collection.find(query)
 
@@ -32,7 +32,7 @@ find_all = find({})
 
 @gamla.curry
 def sort(
-    collection: pymongo.collection.Collection, key: Text, direction: int
+    collection: pymongo.collection.Collection, key: Text, direction: int,
 ) -> Tuple[Dict, ...]:
     return collection.sort(key, direction)
 

@@ -42,7 +42,7 @@ def _write_to_versions_file(deployment_name: Text, hash_to_load: Text, versions_
 
 @gamla.curry
 def _write_hash_to_versions_file(
-    versions_file_name: Text, deployment_name: Text, hash_to_load: Text
+    versions_file_name: Text, deployment_name: Text, hash_to_load: Text,
 ):
     return toolz.pipe(
         versions_file_name,
@@ -97,13 +97,13 @@ def auto_updating_cache(
                 gamla.ignore_input(factory),
                 file_store.save_to_bucket_return_hash(environment, bucket_name),
                 curried.do(
-                    _write_hash_to_versions_file(versions_file_path, deployment_name)
+                    _write_hash_to_versions_file(versions_file_path, deployment_name),
                 ),
                 gamla.log_text(f"Version '{deployment_name}' has been updated"),
             ),
             gamla.compose_left(
                 gamla.check(
-                    gamla.inside(deployment_name), VersionNotFound(deployment_name)
+                    gamla.inside(deployment_name), VersionNotFound(deployment_name),
                 ),
                 curried.get_in([deployment_name, _HASH_VERSION_KEY]),
             ),
@@ -139,11 +139,11 @@ def persistent_cache(
 
     if environment in ("production", "staging", "development"):
         get_cache_item, set_cache_item = redis_utils.make_redis_store(
-            redis_client, environment, name
+            redis_client, environment, name,
         )
     else:
         get_cache_item, set_cache_item = file_store.make_file_store(
-            name, num_misses_to_trigger_sync
+            name, num_misses_to_trigger_sync,
         )
 
     def decorator(func):

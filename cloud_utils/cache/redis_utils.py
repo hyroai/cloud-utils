@@ -8,7 +8,7 @@ import redis
 
 def get_redis_client(host: Text, password: Text) -> redis.Redis:
     return redis.Redis(
-        host=host, port=6379, db=0, decode_responses=True, password=password
+        host=host, port=6379, db=0, decode_responses=True, password=password,
     )
 
 
@@ -18,7 +18,7 @@ def _get_redis_cache_key_name(environment: Text, cache_name: Text, key: Tuple) -
 
 @gamla.curry
 def make_redis_store(
-    redis_client: redis.Redis, environment: Text, name: Text
+    redis_client: redis.Redis, environment: Text, name: Text,
 ) -> Tuple[Callable, Callable]:
     logging.info(f"initializing redis cache for {name}")
 
@@ -35,7 +35,7 @@ def make_redis_store(
     def set_item(key: Tuple, value):
         try:
             redis_client.set(
-                _get_redis_cache_key_name(environment, name, key), json.dumps(value)
+                _get_redis_cache_key_name(environment, name, key), json.dumps(value),
             )
         except (
             redis.exceptions.ConnectionError,
