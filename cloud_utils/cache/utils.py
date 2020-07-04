@@ -23,13 +23,13 @@ class VersionNotFound(Exception):
 
 
 @gamla.curry
-def _write_to_versions_file(deployment_name: Text, hash_to_load: Text, versions_file):
+def _write_to_versions_file(identifier: Text, hash_to_load: Text, versions_file):
     versions = toolz.pipe(
         {
             _HASH_VERSION_KEY: hash_to_load,
             _LAST_RUN_TIMESTAMP: datetime.datetime.now().isoformat(),
         },
-        curried.assoc(json.load(versions_file), deployment_name),
+        curried.assoc(json.load(versions_file), identifier),
         dict.items,
         curried.sorted,
         dict,
@@ -42,22 +42,22 @@ def _write_to_versions_file(deployment_name: Text, hash_to_load: Text, versions_
 
 @gamla.curry
 def _write_hash_to_versions_file(
-    versions_file_name: Text, deployment_name: Text, hash_to_load: Text,
+    versions_file_name: Text, identifier: Text, hash_to_load: Text,
 ):
     return toolz.pipe(
         versions_file_name,
         file_store.open_file(mode="r+"),
-        _write_to_versions_file(deployment_name, hash_to_load),
+        _write_to_versions_file(identifier, hash_to_load),
     )
 
 
-def _should_update(deployment_name: Text, update: bool, force_update: bool) -> bool:
+def _should_update(identifier: Text, update: bool, force_update: bool) -> bool:
     return gamla.anyjuxt(
         gamla.just(force_update),
         gamla.alljuxt(
             gamla.just(update),
             gamla.compose_left(
-                curried.get_in([deployment_name, _LAST_RUN_TIMESTAMP]),
+                curried.get_in([identifier, _LAST_RUN_TIMESTAMP]),
                 gamla.anyjuxt(
                     operator.eq(None),
                     gamla.compose_left(
@@ -78,34 +78,30 @@ def auto_updating_cache(
     environment: Text,
     bucket_name: Text,
     force_update: bool,
-    frame_level: int = 2,
+    frame_level: int,
 ) -> Callable:
 
     # Deployment name is the concatenation of caller's module name and factory's function name.
-    deployment_name = (
-        f"{inspect.stack()[frame_level].frame.f_globals['__name__']}.{factory.__name__}"
-    )
+    identifier = f"{inspect.stack()[frame_level+1].frame.f_globals['__name__']}.{factory.__name__}"
 
-    logging.info(f"Fetching deployment name '{deployment_name}'")
+    logging.info(f"Will try to use cache for [{identifier}].")
     return gamla.compose_left(
         gamla.just(versions_file_path),
         file_store.open_file,
         json.load,
         gamla.ternary(
-            _should_update(deployment_name, update, force_update),
+            _should_update(identifier, update, force_update),
             gamla.compose_left(
                 gamla.ignore_input(factory),
                 file_store.save_to_bucket_return_hash(environment, bucket_name),
                 curried.do(
-                    _write_hash_to_versions_file(versions_file_path, deployment_name),
+                    _write_hash_to_versions_file(versions_file_path, identifier),
                 ),
-                gamla.log_text(f"Version '{deployment_name}' has been updated"),
+                gamla.log_text(f"Finished updating cache for [{identifier}]."),
             ),
             gamla.compose_left(
-                gamla.check(
-                    gamla.inside(deployment_name), VersionNotFound(deployment_name),
-                ),
-                curried.get_in([deployment_name, _HASH_VERSION_KEY]),
+                gamla.check(gamla.inside(identifier), VersionNotFound(identifier)),
+                curried.get_in([identifier, _HASH_VERSION_KEY]),
             ),
         ),
     )
