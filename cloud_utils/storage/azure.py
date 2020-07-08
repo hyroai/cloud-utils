@@ -10,6 +10,7 @@ from azure.storage import blob
 def _get_blob_service():
     return blob.BlockBlobService(
         connection_string=os.getenv("AZURE_STORAGE_CONNECTION_STRING"),
+        socket_timeout=(2000, 2000),
     )
 
 
