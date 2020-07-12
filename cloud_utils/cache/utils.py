@@ -51,7 +51,9 @@ def _write_hash_to_versions_file(
     )
 
 
-def _should_update(identifier: Text, update: bool, force_update: bool) -> bool:
+def _should_update(
+    identifier: Text, update: bool, force_update: bool, ttl_hours: int,
+) -> bool:
     return gamla.anyjuxt(
         gamla.just(force_update),
         gamla.alljuxt(
@@ -63,7 +65,7 @@ def _should_update(identifier: Text, update: bool, force_update: bool) -> bool:
                     gamla.compose_left(
                         datetime.datetime.fromisoformat,
                         lambda x: datetime.datetime.now() - x
-                        > datetime.timedelta(days=1),
+                        > datetime.timedelta(hours=ttl_hours),
                     ),
                 ),
             ),
@@ -79,6 +81,7 @@ def auto_updating_cache(
     bucket_name: Text,
     force_update: bool,
     frame_level: int,
+    ttl_hours: int,
 ) -> Callable:
 
     # Deployment name is the concatenation of caller's module name and factory's function name.
@@ -90,7 +93,7 @@ def auto_updating_cache(
         file_store.open_file,
         json.load,
         gamla.ternary(
-            _should_update(identifier, update, force_update),
+            _should_update(identifier, update, force_update, ttl_hours),
             gamla.compose_left(
                 gamla.ignore_input(factory),
                 file_store.save_to_bucket_return_hash(environment, bucket_name),
