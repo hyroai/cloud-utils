@@ -51,6 +51,20 @@ def _write_hash_to_versions_file(
     )
 
 
+def _get_time_since_last_updated(identifier: Text):
+    return gamla.compose_left(
+        curried.get_in([identifier, _LAST_RUN_TIMESTAMP]),
+        gamla.ternary(
+            operator.eq(None),
+            gamla.just(None),
+            toolz.compose_left(
+                datetime.datetime.fromisoformat,
+                lambda last_updated: datetime.datetime.now() - last_updated,
+            ),
+        ),
+    )
+
+
 def _should_update(
     identifier: Text, update: bool, force_update: bool, ttl_hours: int,
 ) -> bool:
@@ -59,18 +73,20 @@ def _should_update(
         gamla.alljuxt(
             gamla.just(update),
             gamla.compose_left(
-                curried.get_in([identifier, _LAST_RUN_TIMESTAMP]),
+                _get_time_since_last_updated(identifier),
                 gamla.anyjuxt(
-                    operator.eq(None),
-                    gamla.compose_left(
-                        datetime.datetime.fromisoformat,
-                        lambda x: datetime.datetime.now() - x
-                        > datetime.timedelta(hours=ttl_hours),
-                    ),
+                    operator.eq(None), operator.lt(datetime.timedelta(hours=ttl_hours))
                 ),
             ),
         ),
     )
+
+
+_get_total_hours_since_update = gamla.ternary(
+    operator.eq(None),
+    gamla.just(0),
+    toolz.compose_left(lambda time_span: time_span.total_seconds() / 3600, round),
+)
 
 
 def auto_updating_cache(
@@ -87,11 +103,18 @@ def auto_updating_cache(
     # Deployment name is the concatenation of caller's module name and factory's function name.
     identifier = f"{inspect.stack()[frame_level+1].frame.f_globals['__name__']}.{factory.__name__}"
 
-    logging.info(f"Will try to use cache for [{identifier}].")
     return gamla.compose_left(
         gamla.just(versions_file_path),
         file_store.open_file,
         json.load,
+        curried.do(
+            toolz.compose_left(
+                _get_time_since_last_updated(identifier),
+                _get_total_hours_since_update,
+                lambda hours_since_last_update: f"Loading cache for [{identifier}]. Last updated {hours_since_last_update} hours ago.",
+                logging.info,
+            )
+        ),
         gamla.ternary(
             _should_update(identifier, update, force_update, ttl_hours),
             gamla.compose_left(
