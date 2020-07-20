@@ -75,7 +75,7 @@ def _should_update(
             gamla.compose_left(
                 _get_time_since_last_updated(identifier),
                 gamla.anyjuxt(
-                    operator.eq(None), operator.lt(datetime.timedelta(hours=ttl_hours))
+                    operator.eq(None), operator.lt(datetime.timedelta(hours=ttl_hours)),
                 ),
             ),
         ),
@@ -113,7 +113,7 @@ def auto_updating_cache(
                 _get_total_hours_since_update,
                 lambda hours_since_last_update: f"Loading cache for [{identifier}]. Last updated {hours_since_last_update} hours ago.",
                 logging.info,
-            )
+            ),
         ),
         gamla.ternary(
             _should_update(identifier, update, force_update, ttl_hours),
@@ -126,7 +126,9 @@ def auto_updating_cache(
                 gamla.log_text(f"Finished updating cache for [{identifier}]."),
             ),
             gamla.compose_left(
-                gamla.check(gamla.inside(identifier), VersionNotFound(identifier)),
+                gamla.check(
+                    gamla.inside(identifier), gamla.just(VersionNotFound(identifier)),
+                ),
                 curried.get_in([identifier, _HASH_VERSION_KEY]),
             ),
         ),
