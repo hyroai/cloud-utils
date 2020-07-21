@@ -45,7 +45,6 @@ def _create_secret(secret: Dict[Text, Text]):
         logging.info(f"Secret '{secret['secret_name']}' created.")
 
 
-@gamla.curry
 def create_cron_job(
     pod_name: Text,
     image: Text,
