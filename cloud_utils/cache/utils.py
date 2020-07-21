@@ -2,7 +2,8 @@ import datetime
 import functools
 import inspect
 import json
-from typing import Any, Callable, Dict, Text
+import logging
+from typing import Callable, Text
 
 import async_lru
 import gamla
@@ -17,16 +18,23 @@ _HASH_VERSION_KEY = "hash_version"
 _LAST_RUN_TIMESTAMP = "last_run_timestamp"
 
 
+class VersionNotFound(Exception):
+    pass
+
+
 @gamla.curry
-def _write_to_versions_file(deployment_name: Text, hash_to_load: Text, versions_file):
-    versions = toolz.assoc(
-        json.load(versions_file),
-        deployment_name,
+def _write_to_versions_file(identifier: Text, hash_to_load: Text, versions_file):
+    versions = toolz.pipe(
         {
             _HASH_VERSION_KEY: hash_to_load,
             _LAST_RUN_TIMESTAMP: datetime.datetime.now().isoformat(),
         },
+        curried.assoc(json.load(versions_file), identifier),
+        dict.items,
+        curried.sorted,
+        dict,
     )
+
     versions_file.seek(0)
     json.dump(versions, versions_file, indent=2)
     versions_file.truncate()
@@ -34,30 +42,51 @@ def _write_to_versions_file(deployment_name: Text, hash_to_load: Text, versions_
 
 @gamla.curry
 def _write_hash_to_versions_file(
-    versions_file_name: Text, deployment_name: Text, hash_to_load: Text
+    versions_file_name: Text, identifier: Text, hash_to_load: Text,
 ):
     return toolz.pipe(
         versions_file_name,
         file_store.open_file(mode="r+"),
-        _write_to_versions_file(deployment_name, hash_to_load),
+        _write_to_versions_file(identifier, hash_to_load),
     )
 
 
-@gamla.curry
-def _should_update(
-    deployment_name: Text, update: bool, versions: Dict[Text, Any]
-) -> bool:
-    return gamla.anyjuxt(
-        gamla.compose_left(gamla.inside(deployment_name), operator.not_),
-        gamla.alljuxt(
-            gamla.just(update),
-            gamla.compose_left(
-                curried.get_in([deployment_name, _LAST_RUN_TIMESTAMP]),
+def _get_time_since_last_updated(identifier: Text):
+    return gamla.compose_left(
+        curried.get_in([identifier, _LAST_RUN_TIMESTAMP]),
+        gamla.ternary(
+            operator.eq(None),
+            gamla.just(None),
+            toolz.compose_left(
                 datetime.datetime.fromisoformat,
-                lambda x: datetime.datetime.now() - x > datetime.timedelta(days=1),
+                lambda last_updated: datetime.datetime.now() - last_updated,
             ),
         ),
     )
+
+
+def _should_update(
+    identifier: Text, update: bool, force_update: bool, ttl_hours: int,
+) -> bool:
+    return gamla.anyjuxt(
+        gamla.just(force_update),
+        gamla.alljuxt(
+            gamla.just(update),
+            gamla.compose_left(
+                _get_time_since_last_updated(identifier),
+                gamla.anyjuxt(
+                    operator.eq(None), operator.lt(datetime.timedelta(hours=ttl_hours)),
+                ),
+            ),
+        ),
+    )
+
+
+_get_total_hours_since_update = gamla.ternary(
+    operator.eq(None),
+    gamla.just(0),
+    toolz.compose_left(lambda time_span: time_span.total_seconds() / 3600, round),
+)
 
 
 def auto_updating_cache(
@@ -66,34 +95,44 @@ def auto_updating_cache(
     versions_file_path: Text,
     environment: Text,
     bucket_name: Text,
-    frame_level: int = 2,
+    force_update: bool,
+    frame_level: int,
+    ttl_hours: int,
 ) -> Callable:
 
     # Deployment name is the concatenation of caller's module name and factory's function name.
-    deployment_name = (
-        f"{inspect.stack()[frame_level].frame.f_globals['__name__']}.{factory.__name__}"
-    )
+    identifier = f"{inspect.stack()[frame_level+1].frame.f_globals['__name__']}.{factory.__name__}"
 
     return gamla.compose_left(
         gamla.just(versions_file_path),
         file_store.open_file,
         json.load,
+        curried.do(
+            toolz.compose_left(
+                _get_time_since_last_updated(identifier),
+                _get_total_hours_since_update,
+                lambda hours_since_last_update: f"Loading cache for [{identifier}]. Last updated {hours_since_last_update} hours ago.",
+                logging.info,
+            ),
+        ),
         gamla.ternary(
-            _should_update(deployment_name, update),
+            _should_update(identifier, update, force_update, ttl_hours),
             gamla.compose_left(
                 gamla.ignore_input(factory),
                 file_store.save_to_bucket_return_hash(environment, bucket_name),
                 curried.do(
-                    _write_hash_to_versions_file(versions_file_path, deployment_name)
+                    _write_hash_to_versions_file(versions_file_path, identifier),
                 ),
-                gamla.log_text(f"Version '{deployment_name}' has been updated"),
+                gamla.log_text(f"Finished updating cache for [{identifier}]."),
             ),
-            curried.get_in([deployment_name, _HASH_VERSION_KEY]),
+            gamla.compose_left(
+                gamla.check(
+                    gamla.inside(identifier), gamla.just(VersionNotFound(identifier)),
+                ),
+                curried.get_in([identifier, _HASH_VERSION_KEY]),
+            ),
         ),
     )
-
-
-_ORDERED_SEQUENCE_TYPES = (list, tuple)
 
 
 def _get_origin_type(type_hint):
@@ -124,11 +163,11 @@ def persistent_cache(
 
     if environment in ("production", "staging", "development"):
         get_cache_item, set_cache_item = redis_utils.make_redis_store(
-            redis_client, environment, name
+            redis_client, environment, name,
         )
     else:
         get_cache_item, set_cache_item = file_store.make_file_store(
-            name, num_misses_to_trigger_sync
+            name, num_misses_to_trigger_sync,
         )
 
     def decorator(func):

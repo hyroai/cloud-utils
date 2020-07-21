@@ -89,7 +89,7 @@ def load_file_from_bucket(bucket_name: Text, file_name: Text):
 
 
 def save_to_bucket_return_hash(environment: Text, bucket_name: Text):
-    return toolz.compose_left(
+    return gamla.compose_left(
         gamla.pair_with(gamla.compute_stable_json_hash),
         curried.do(gamla.star(_save_to_blob(bucket_name))),
         curried.do(gamla.star(save_local(environment))),
@@ -127,14 +127,14 @@ def load_xml_to_dict(xml_file: Text) -> Dict:
 
 
 def make_file_store(
-    name: Text, num_misses_to_trigger_sync: int
+    name: Text, num_misses_to_trigger_sync: int,
 ) -> Tuple[Callable, Callable]:
     change_count = 0
     sync_running = False
     sync_start = 0.0
 
     logging.info(
-        f"initializing local file cache for {name} (num_misses_to_trigger_sync={num_misses_to_trigger_sync})"
+        f"initializing local file cache for {name} (num_misses_to_trigger_sync={num_misses_to_trigger_sync})",
     )
 
     # Initialize cache.
@@ -143,7 +143,7 @@ def make_file_store(
         logging.info(f"loaded {len(cache)} cache items from local file for {name}")
     except (OSError, IOError, EOFError, pickle.UnpicklingError) as err:
         logging.info(
-            f"cache {name} does not exist or is invalid. initializing an empty cache. error: {err}"
+            f"cache {name} does not exist or is invalid. initializing an empty cache. error: {err}",
         )
         cache = {}
 
@@ -158,7 +158,7 @@ def make_file_store(
 
         if change_count >= num_misses_to_trigger_sync and not sync_running:
             logging.info(
-                f"more than {num_misses_to_trigger_sync} keys changed in cache {name}. syncing with local file"
+                f"more than {num_misses_to_trigger_sync} keys changed in cache {name}. syncing with local file",
             )
 
             sync_running = True
@@ -168,12 +168,12 @@ def make_file_store(
                 _save_cache_locally(name, cache)
                 sync_running = False
                 logging.info(
-                    f"synced cache {name} to local file in {timeit.default_timer() - sync_start}"
+                    f"synced cache {name} to local file in {timeit.default_timer() - sync_start}",
                 )
                 change_count -= num_misses_to_trigger_sync
             except (OSError, IOError, EOFError) as exception:
                 logging.error(
-                    f"could not sync {name} with local file. error: {exception}"
+                    f"could not sync {name} with local file. error: {exception}",
                 )
 
     return get_item, set_item

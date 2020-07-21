@@ -25,7 +25,7 @@ async def deploy_schedule(
 def main(argv: Optional[Sequence[str]] = None) -> int:
     argv = argv if argv is not None else sys.argv[1:]
     parser = argparse.ArgumentParser(
-        description="Creates k8s CronJobs from schedule.json file"
+        description="Creates k8s CronJobs from schedule.json file",
     )
     parser.add_argument(
         "repo",
@@ -40,7 +40,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     )
     args = parser.parse_args(argv)
     asyncio.get_event_loop().run_until_complete(
-        deploy_schedule(json.load(open(args.schedule)), args.repo)
+        deploy_schedule(json.load(open(args.schedule)), args.repo),
     )
     return 0
 
