@@ -4,8 +4,10 @@ import os
 try:
     if os.getenv("STORAGE_PROVIDER", "azure") == "azure":
         from cloud_utils.storage import azure as _storage_service
-    else:
+    elif os.getenv("STORAGE_PROVIDER") == "gcp":
         from cloud_utils.storage import gcp as _storage_service  # type: ignore
+    else:
+        from cloud_utils.storage import aws as _storage_service  # type: ignore
 
     download_blob_as_string = _storage_service.download_blob_as_string
     download_blob_to_file = _storage_service.download_blob_to_file
