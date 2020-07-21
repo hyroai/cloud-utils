@@ -54,3 +54,7 @@ def add_match_filter(f: Callable) -> Tuple[Dict, ...]:
 
 def query_to_match_aggregation_stage(query: Dict[Text, Any]) -> Dict[Text, Any]:
     return {"$match": query}
+
+
+def query_to_count_aggregation_stage() -> Dict[Text, Any]:
+    return {"$count": "count"}
