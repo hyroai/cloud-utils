@@ -58,3 +58,7 @@ def query_to_match_aggregation_stage(query: Dict[Text, Any]) -> Dict[Text, Any]:
 
 def query_to_count_aggregation_stage() -> Dict[Text, Any]:
     return {"$count": "count"}
+
+
+def query_to_sort_aggregation_stage(query: Dict[Text, int]) -> Dict[Text, Any]:
+    return {"$sort": query}
