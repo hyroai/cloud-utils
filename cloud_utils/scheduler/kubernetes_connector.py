@@ -48,6 +48,7 @@ def _create_secret(secret: Dict[Text, Text]):
 def create_cron_job(
     pod_name: Text,
     image: Text,
+    tag: Text,
     env_variables: List[Dict[Text, Text]],
     secrets: List[Dict[Text, Text]],
     command: List[Text],
@@ -68,11 +69,15 @@ def create_cron_job(
         ),
         spec=client.V1beta1CronJobSpec(
             schedule=schedule,
+            concurrency_policy="Forbid",
+            successful_jobs_history_limit=1,
+            failed_jobs_history_limit=1,
             job_template=client.V1beta1JobTemplateSpec(
                 spec=client.V1JobSpec(
+                    backoff_limit=1,
                     template=client.V1PodTemplateSpec(
                         spec=_get_pod_manifest(
-                            pod_name, image, env_variables, secrets, command, args,
+                            pod_name, image, tag, env_variables, secrets, command, args,
                         ),
                     ),
                 ),
@@ -94,13 +99,14 @@ def create_cron_job(
 def _get_pod_manifest(
     pod_name: Text,
     image: Text,
+    tag: Text,
     env_variables: List[Dict[Text, Text]],
     secrets: List[Dict[Text, Text]],
     command: List[Text],
     args: List[Text],
 ):
     return toolz.pipe(
-        (pod_name, image),
+        (pod_name, image, tag),
         gamla.star(_make_base_pod_spec),
         gamla.assoc_in(keys=["containers", 0, "env"], value=env_variables),
         toolz.compose_left(
@@ -117,9 +123,9 @@ def _get_pod_manifest(
     )
 
 
-def _make_base_pod_spec(pod_name: Text, image: Text):
+def _make_base_pod_spec(pod_name: Text, image: Text, tag: Text):
     return {
-        "containers": [{"image": image, "name": f"{pod_name}-container"}],
+        "containers": [{"image": f"{image}:{tag}", "name": f"{pod_name}-container"}],
         "imagePullSecrets": [
             {"name": f"{_get_repo_name_from_image(image)}-gitlab-creds"},
         ],

@@ -3,7 +3,7 @@
     "schedule": "0 8 * * *",
     "run": {
       "pod_name": "insight-reports",
-      "image": "registry.gitlab.com/airbud/analysis:latest",
+      "image": "registry.gitlab.com/airbud/analysis",
       "env_variables": [
         {
           "name": "GOOGLE_APPLICATION_CREDENTIALS",
