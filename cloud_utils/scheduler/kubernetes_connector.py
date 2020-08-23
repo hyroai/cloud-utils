@@ -1,24 +1,13 @@
 import base64
 import logging
-import os
 import time
-from pathlib import Path
 from typing import Dict, List, Text
 
 import gamla
 import toolz
-from kubernetes import client, config
+from kubernetes import client
 from kubernetes.client import rest
-
-
-def _init_kubernetes_client():
-    kube_config_file = Path("~/.kube/config").expanduser()
-    if not kube_config_file.exists():
-        config_decoded = base64.b64decode(os.environ["KUBE_CONFIG"])
-        Path("~/.kube").expanduser().mkdir(exist_ok=True)
-        kube_config_file.touch(exist_ok=True)
-        kube_config_file.write_bytes(config_decoded)
-    config.load_kube_config()
+from cloud_utils.k8s import configure
 
 
 def _create_secret(secret: Dict[Text, Text]):
@@ -172,4 +161,4 @@ def _get_repo_name_from_image(image: Text):
     return image.split(":")[0].split("/")[-1]
 
 
-_init_kubernetes_client()
+configure.init_kubernetes_client()
