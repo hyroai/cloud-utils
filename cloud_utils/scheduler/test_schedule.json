@@ -25,8 +25,7 @@
         }
       ],
       "command": ["python", "default_insight_reports.py"],
-      "args": [],
-      "node_selector": {"role": "apps"}
+      "args": []
     }
   }
 ]

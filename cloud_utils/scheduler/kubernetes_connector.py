@@ -3,7 +3,7 @@ import logging
 import os
 import time
 from pathlib import Path
-from typing import Dict, List, Text
+from typing import Dict, List, Optional, Text
 
 import gamla
 import toolz
@@ -53,10 +53,10 @@ def create_cron_job(
     secrets: List[Dict[Text, Text]],
     command: List[Text],
     args: List[Text],
-    node_selector: Dict[Text, Text],
     schedule: Text,
     repo_name: Text,
     dry_run: bool,
+    node_selector: Optional[Dict[Text, Text]] = None,
 ) -> Text:
     if secrets:
         for secret in secrets:
@@ -112,7 +112,7 @@ def _get_pod_manifest(
     secrets: List[Dict[Text, Text]],
     command: List[Text],
     args: List[Text],
-    node_selector: Dict[Text, Text],
+    node_selector: Optional[Dict[Text, Text]],
 ):
     return toolz.pipe(
         (pod_name, image, tag, node_selector),
@@ -133,7 +133,7 @@ def _get_pod_manifest(
 
 
 def _make_base_pod_spec(
-    pod_name: Text, image: Text, tag: Text, node_selector: Dict[Text, Text],
+    pod_name: Text, image: Text, tag: Text, node_selector: Optional[Dict[Text, Text]],
 ):
     return {
         "containers": [{"image": f"{image}:{tag}", "name": f"{pod_name}-container"}],
