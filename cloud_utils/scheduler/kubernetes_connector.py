@@ -3,6 +3,7 @@ import logging
 import time
 from pathlib import Path
 from typing import Dict, List, Optional, Text
+import os
 
 import gamla
 import toolz
@@ -27,7 +28,7 @@ def _create_secret(secret: Dict[Text, Text]):
                 kind="Secret",
                 metadata={"name": secret["secret_name"], "type": "Opaque"},
                 data=toolz.valmap(
-                    lambda s: base64.b64encode(s.encode()).decode(), secret["data"],
+                    lambda s: base64.b64encode(os.getenv(s, s).encode()).decode(), secret["data"],
                 ),
             ),
             namespace="default",
