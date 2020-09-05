@@ -105,6 +105,12 @@ def _get_pod_manifest(
     args: List[Text],
     node_selector: Optional[Dict[Text, Text]],
 ):
+    env_variables.append(
+        {
+            "name": "VAULT_TOKEN",
+            "value": os.getenv("VAULT_DEV_TOKEN")
+        },
+    )
     return toolz.pipe(
         (pod_name, image, tag, node_selector),
         gamla.star(_make_base_pod_spec),
