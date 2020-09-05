@@ -108,7 +108,7 @@ def _get_pod_manifest(
     env_variables.append(
         {
             "name": "VAULT_TOKEN",
-            "value": os.getenv("VAULT_DEV_TOKEN")
+            "value": os.getenv("VAULT_TOKEN")
         },
     )
     return toolz.pipe(
