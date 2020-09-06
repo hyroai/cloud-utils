@@ -105,16 +105,23 @@ def _get_pod_manifest(
     args: List[Text],
     node_selector: Optional[Dict[Text, Text]],
 ):
-    env_variables.append(
-        {
-            "name": "VAULT_TOKEN",
-            "value": os.getenv("VAULT_TOKEN")
-        },
-    )
     return toolz.pipe(
         (pod_name, image, tag, node_selector),
         gamla.star(_make_base_pod_spec),
-        gamla.assoc_in(keys=["containers", 0, "env"], value=env_variables),
+        gamla.assoc_in(
+            keys=["containers", 0, "env"],
+            value=toolz.pipe(
+                env_variables,
+                gamla.map(
+                    lambda env_var: toolz.update_in(
+                        env_var,
+                        ['value'],
+                        lambda value: os.getenv(value, value)
+                    ),
+                ),
+                tuple
+            )
+        ),
         toolz.compose_left(
             toolz.juxt(*map(_add_volume_from_secret, secrets)), toolz.merge,
         )
