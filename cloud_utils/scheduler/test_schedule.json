@@ -12,6 +12,10 @@
         {
           "name": "STORAGE_PROVIDER",
           "value": "azure"
+        },
+        {
+          "name": "TEST_SECRET_ENV",
+          "value": "TOKEN"
         }
       ],
       "secrets": [

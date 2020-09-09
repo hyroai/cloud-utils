@@ -1,14 +1,14 @@
 import base64
 import logging
-import time
-from pathlib import Path
-from typing import Dict, List, Optional, Text
 import os
+import time
+from typing import Dict, List, Optional, Text
 
 import gamla
 import toolz
 from kubernetes import client
 from kubernetes.client import rest
+
 from cloud_utils.k8s import configure
 
 
@@ -28,7 +28,8 @@ def _create_secret(secret: Dict[Text, Text]):
                 kind="Secret",
                 metadata={"name": secret["secret_name"], "type": "Opaque"},
                 data=toolz.valmap(
-                    lambda s: base64.b64encode(os.getenv(s, s).encode()).decode(), secret["data"],
+                    lambda s: base64.b64encode(os.getenv(s, s).encode()).decode(),
+                    secret["data"],
                 ),
             ),
             namespace="default",
@@ -108,7 +109,18 @@ def _get_pod_manifest(
     return toolz.pipe(
         (pod_name, image, tag, node_selector),
         gamla.star(_make_base_pod_spec),
-        gamla.assoc_in(keys=["containers", 0, "env"], value=env_variables),
+        gamla.assoc_in(
+            keys=["containers", 0, "env"],
+            value=toolz.pipe(
+                env_variables,
+                gamla.map(
+                    lambda env_var: toolz.update_in(
+                        env_var, ["value"], lambda value: os.getenv(value, value),
+                    ),
+                ),
+                tuple,
+            ),
+        ),
         toolz.compose_left(
             toolz.juxt(*map(_add_volume_from_secret, secrets)), toolz.merge,
         )
