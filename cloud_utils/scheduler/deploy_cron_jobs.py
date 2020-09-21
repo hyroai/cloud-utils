@@ -10,7 +10,6 @@ from cloud_utils.scheduler import kubernetes_connector
 async def deploy_schedule(
     job_configs: Iterable[Dict], repo_name: Text, tag: Text, dry_run: bool = False
 ):
-    kubernetes_connector.delete_old_cron_jobs(repo_name, dry_run=dry_run)
     for config in job_configs:
         kubernetes_connector.create_cron_job(
             **{

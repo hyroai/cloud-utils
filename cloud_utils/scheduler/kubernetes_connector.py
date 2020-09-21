@@ -85,14 +85,22 @@ def create_cron_job(
         ),
     )
     try:
-        options = {"namespace": "default", "body": cron_job, "pretty": "true"}
+        options = {"name": f"{pod_name}-cronjob", "namespace": "default", "body": cron_job, "pretty": "true"}
         if dry_run:
             options["dry_run"] = "All"
-        api_response = client.BatchV1beta1Api().create_namespaced_cron_job(**options)
-        logging.info(f"CronJob created: {api_response}")
+        api_response = client.BatchV1beta1Api().patch_namespaced_cron_job(**options)
+        logging.info(f"CronJob updated: {api_response}")
     except rest.ApiException as e:
-        logging.error(f"Error creating CronJob: {e}")
-        raise
+        logging.info(f"CronJob {options['name']} does'nt exist, creating...")
+        try:
+            options = {"namespace": "default", "body": cron_job, "pretty": "true"}
+            if dry_run:
+                options["dry_run"] = "All"
+            api_response = client.BatchV1beta1Api().create_namespaced_cron_job(**options)
+            logging.info(f"CronJob created: {api_response}")
+        except rest.ApiException as e:
+            logging.error(f"Error creating CronJob: {e}")
+            raise
     return pod_name
 
 
@@ -172,15 +180,13 @@ def _add_volume_from_secret(secret: Dict[Text, Text]):
     )
 
 
-def delete_old_cron_jobs(repo_name: Text, dry_run: bool = False):
+def delete_all_cron_jobs(repo_name: Text, dry_run: bool = False):
     api_instance = client.BatchV1beta1Api()
     options = {"namespace": "default", "label_selector": f"repository={repo_name}"}
     if dry_run:
         options["dry_run"] = "All"
     api_instance.delete_collection_namespaced_cron_job(**options)
     logging.info("Deleting CronJobs. Waiting 2 min for deletion to complete...")
-    # TODO(Erez): Find an event driven way to wait for this
-    time.sleep(2 * 60)
 
 
 def _get_repo_name_from_image(image: Text):

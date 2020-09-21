@@ -2,7 +2,7 @@
   {
     "schedule": "0 8 * * *",
     "run": {
-      "pod_name": "insight-reports",
+      "pod_name": "insight-reports-test",
       "image": "registry.gitlab.com/airbud/analysis",
       "env_variables": [
         {
