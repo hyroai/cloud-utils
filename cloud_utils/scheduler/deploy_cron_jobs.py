@@ -20,6 +20,7 @@ async def deploy_schedule(
                 "dry_run": dry_run,
             }
         )
+    kubernetes_connector.delete_old_cron_jobs(repo_name, job_configs, dry_run=dry_run)
 
 
 def main(argv: Optional[Sequence[str]] = None) -> int:
