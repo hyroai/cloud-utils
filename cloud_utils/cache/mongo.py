@@ -24,7 +24,7 @@ def aggregate(
 def find(
     query: Dict[Text, Any], collection: pymongo.collection.Collection,
 ) -> Tuple[Dict, ...]:
-    return collection.find(query)
+    return collection.find(query, no_cursor_timeout=True)
 
 
 find_all = find({})
