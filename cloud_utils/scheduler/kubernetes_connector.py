@@ -1,15 +1,24 @@
 import base64
 import logging
 import os
-import time
 from typing import Dict, List, Optional, Text
 
 import gamla
 import toolz
 from kubernetes import client
 from kubernetes.client import rest
+from toolz import curried
 
 from cloud_utils.k8s import configure
+
+
+def _set_dry_run(options: Dict, dry_run: bool):
+    if dry_run:
+        options["dry_run"] = "All"
+
+
+def _get_cronjob_name(pod_name: Text) -> Text:
+    return f"{pod_name}-cronjob"
 
 
 def _create_secret(secret: Dict[Text, Text]):
@@ -58,7 +67,7 @@ def create_cron_job(
         api_version="batch/v1beta1",
         kind="CronJob",
         metadata=client.V1ObjectMeta(
-            name=f"{pod_name}-cronjob", labels={"repository": repo_name},
+            name=_get_cronjob_name(pod_name), labels={"repository": repo_name},
         ),
         spec=client.V1beta1CronJobSpec(
             schedule=schedule,
@@ -84,15 +93,17 @@ def create_cron_job(
             ),
         ),
     )
+    options = {"namespace": "default", "body": cron_job, "pretty": "true"}
+    _set_dry_run(options, dry_run)
     try:
-        options = {"namespace": "default", "body": cron_job, "pretty": "true"}
-        if dry_run:
-            options["dry_run"] = "All"
+        api_response = client.BatchV1beta1Api().patch_namespaced_cron_job(
+            **toolz.assoc(options, "name", _get_cronjob_name(pod_name))
+        )
+    except rest.ApiException:
+        logging.info(f"CronJob {options.get('name')} doesn't exist, creating...")
         api_response = client.BatchV1beta1Api().create_namespaced_cron_job(**options)
-        logging.info(f"CronJob created: {api_response}")
-    except rest.ApiException as e:
-        logging.error(f"Error creating CronJob: {e}")
-        raise
+    logging.info(f"CronJob updated: {api_response}")
+
     return pod_name
 
 
@@ -172,15 +183,37 @@ def _add_volume_from_secret(secret: Dict[Text, Text]):
     )
 
 
-def delete_old_cron_jobs(repo_name: Text, dry_run: bool = False):
+@toolz.curry
+def _delete_cron_job(api_instance: client.BatchV1beta1Api, dry_run: bool, name: Text):
+    options = {"name": name, "namespace": "default"}
+    _set_dry_run(options, dry_run)
+    api_instance.delete_namespaced_cron_job(**options)
+
+
+def delete_old_cron_jobs(repo_name: Text, new_jobs, dry_run: bool = False):
     api_instance = client.BatchV1beta1Api()
     options = {"namespace": "default", "label_selector": f"repository={repo_name}"}
-    if dry_run:
-        options["dry_run"] = "All"
-    api_instance.delete_collection_namespaced_cron_job(**options)
-    logging.info("Deleting CronJobs. Waiting 2 min for deletion to complete...")
-    # TODO(Erez): Find an event driven way to wait for this
-    time.sleep(2 * 60)
+    api_response = api_instance.list_namespaced_cron_job(**options)
+    gamla.pipe(
+        api_response.items,
+        curried.map(lambda cronjob: cronjob.metadata.name),
+        curried.remove(
+            curried.operator.contains(
+                gamla.pipe(
+                    new_jobs,
+                    gamla.map(
+                        gamla.compose_left(
+                            curried.get_in(["run", "pod_name"]), _get_cronjob_name,
+                        ),
+                    ),
+                    tuple,
+                ),
+            ),
+        ),
+        curried.map(_delete_cron_job(api_instance, dry_run)),
+        tuple,
+    )
+    logging.info("Deleted old CronJobs.")
 
 
 def _get_repo_name_from_image(image: Text):
