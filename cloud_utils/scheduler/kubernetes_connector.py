@@ -197,16 +197,17 @@ def delete_old_cron_jobs(repo_name: Text, new_jobs, dry_run: bool = False):
     gamla.pipe(
         api_response.items,
         curried.map(lambda cronjob: cronjob.metadata.name),
-        curried.filter(
-            lambda cronjob_name: cronjob_name
-            not in gamla.pipe(
-                new_jobs,
-                gamla.map(
-                    gamla.compose_left(
-                        curried.get_in(["run", "pod_name"]), _get_cronjob_name,
+        curried.remove(
+            curried.operator.contains(
+                gamla.pipe(
+                    new_jobs,
+                    gamla.map(
+                        gamla.compose_left(
+                            curried.get_in(["run", "pod_name"]), _get_cronjob_name,
+                        ),
                     ),
+                    tuple,
                 ),
-                tuple,
             ),
         ),
         curried.map(_delete_cron_job(api_instance, dry_run)),
