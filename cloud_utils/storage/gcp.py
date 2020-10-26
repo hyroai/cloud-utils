@@ -10,7 +10,7 @@ def _get_blob(bucket_name: Text, blob_name: Text):
 
 
 def upload_blob(bucket_name: Text, blob_name: Text, obj: Any):
-    _get_blob(bucket_name, blob_name).upload_from_string(obj.to_json())
+    _get_blob(bucket_name, blob_name).upload_from_string(gamla.to_json(obj))
 
 
 @gamla.curry
