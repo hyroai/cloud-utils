@@ -15,7 +15,7 @@ def _get_blob_service():
 
 
 def upload_blob(bucket_name: Text, blob_name: Text, obj: Any):
-    stream = io.BytesIO(bytes(obj.to_json(), "utf-8"))
+    stream = io.BytesIO(bytes(gamla.to_json(obj), "utf-8"))
     _get_blob_service().create_blob_from_stream(
         bucket_name, blob_name, stream, timeout=1800,
     )
