@@ -54,10 +54,7 @@ def save_local(environment: Text, object_hash: Text, obj: Any) -> Any:
     if local_path.exists():
         return
     with local_path.open("w") as f:
-        if isinstance(obj, dict) or isinstance(obj, list):
-            json.dump(obj, f)
-        else:
-            f.write(gamla.to_json)
+        f.write(gamla.to_json(obj))
     logging.info(f"Saved {object_hash} to local cache.")
 
 
