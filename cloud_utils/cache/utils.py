@@ -42,11 +42,13 @@ def _write_to_versions_file(identifier: Text, hash_to_load: Text, versions_file)
 
 @gamla.curry
 def _write_hash_to_versions_file(
-    versions_file_name: Text, identifier: Text, hash_to_load: Text,
+    versions_file_name: Text,
+    identifier: Text,
+    hash_to_load: Text,
 ):
     return toolz.pipe(
         versions_file_name,
-        file_store.open_file(mode="r+"),
+        file_store.open_file("r+"),
         _write_to_versions_file(identifier, hash_to_load),
     )
 
@@ -66,7 +68,10 @@ def _get_time_since_last_updated(identifier: Text):
 
 
 def _should_update(
-    identifier: Text, update: bool, force_update: bool, ttl_hours: int,
+    identifier: Text,
+    update: bool,
+    force_update: bool,
+    ttl_hours: int,
 ) -> bool:
     return gamla.anyjuxt(
         gamla.just(force_update),
@@ -75,7 +80,8 @@ def _should_update(
             gamla.compose_left(
                 _get_time_since_last_updated(identifier),
                 gamla.anyjuxt(
-                    operator.eq(None), operator.lt(datetime.timedelta(hours=ttl_hours)),
+                    operator.eq(None),
+                    operator.lt(datetime.timedelta(hours=ttl_hours)),
                 ),
             ),
         ),
@@ -105,7 +111,7 @@ def auto_updating_cache(
 
     return gamla.compose_left(
         gamla.just(versions_file_path),
-        file_store.open_file,
+        file_store.open_file("r"),
         json.load,
         curried.do(
             toolz.compose_left(
@@ -127,7 +133,8 @@ def auto_updating_cache(
             ),
             gamla.compose_left(
                 gamla.check(
-                    gamla.inside(identifier), gamla.just(VersionNotFound(identifier)),
+                    gamla.inside(identifier),
+                    VersionNotFound(identifier),
                 ),
                 curried.get_in([identifier, _HASH_VERSION_KEY]),
             ),
@@ -163,11 +170,14 @@ def persistent_cache(
 
     if environment in ("production", "staging", "development"):
         get_cache_item, set_cache_item = redis_utils.make_redis_store(
-            redis_client, environment, name,
+            redis_client,
+            environment,
+            name,
         )
     else:
         get_cache_item, set_cache_item = file_store.make_file_store(
-            name, num_misses_to_trigger_sync,
+            name,
+            num_misses_to_trigger_sync,
         )
 
     def decorator(func):

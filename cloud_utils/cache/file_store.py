@@ -16,9 +16,8 @@ from cloud_utils import storage
 _LOCAL_CACHE_PATH: pathlib.Path = pathlib.Path.home().joinpath(".nlu_cache")
 
 
-@gamla.curry
-def open_file(file_name: Text, mode="r"):
-    return toolz.pipe(file_name, pathlib.Path, lambda p: p.open(mode=mode))
+def open_file(mode: Text):
+    return gamla.compose_left(pathlib.Path, lambda p: p.open(mode=mode))
 
 
 def _hash_to_filename(hash_str: Text) -> Text:
@@ -124,7 +123,8 @@ def load_xml_to_dict(xml_file: Text) -> Dict:
 
 
 def make_file_store(
-    name: Text, num_misses_to_trigger_sync: int,
+    name: Text,
+    num_misses_to_trigger_sync: int,
 ) -> Tuple[Callable, Callable]:
     change_count = 0
     sync_running = False
