@@ -5,6 +5,7 @@ import pymongo
 import toolz
 from toolz import curried
 
+
 ASCENDING = pymongo.ASCENDING
 DESCENDING = pymongo.DESCENDING
 
@@ -66,3 +67,4 @@ def query_to_sample_aggregation_stage(n: int) -> Dict:
 
 def query_to_sort_aggregation_stage(query: Dict[Text, int]) -> Dict[Text, Any]:
     return {"$sort": query}
+
