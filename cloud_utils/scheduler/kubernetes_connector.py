@@ -58,6 +58,7 @@ def create_cron_job(
     repo_name: Text,
     dry_run: bool,
     node_selector: Optional[Dict[Text, Text]] = None,
+    labels: Optional[Dict[Text, Text]] = None,
 ) -> Text:
     if secrets:
         for secret in secrets:
@@ -78,6 +79,7 @@ def create_cron_job(
                 spec=client.V1JobSpec(
                     backoff_limit=1,
                     template=client.V1PodTemplateSpec(
+                        metadata=client.V1ObjectMeta(labels=labels),
                         spec=_get_pod_manifest(
                             pod_name,
                             image,
