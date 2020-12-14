@@ -4,10 +4,8 @@ import os
 from typing import Dict, List, Optional, Text
 
 import gamla
-import toolz
 from kubernetes import client
 from kubernetes.client import rest
-from toolz import curried
 
 from cloud_utils.k8s import configure
 
@@ -17,26 +15,26 @@ def _set_dry_run(options: Dict, dry_run: bool):
         options["dry_run"] = "All"
 
 
-def _get_cronjob_name(pod_name: Text) -> Text:
-    return f"{pod_name}-cronjob"
+_cronjob_name = gamla.wrap_str("{}-cronjob")
 
 
 def _create_secret(secret: Dict[Text, Text]):
     api_instance = client.CoreV1Api()
     try:
         api_instance.read_namespaced_secret(
-            name=secret["secret_name"], namespace="default",
+            name=secret["secret_name"],
+            namespace="default",
         )
     except rest.ApiException as e:
         if e.status != 404:
-            raise RuntimeError(f"Unknown error: {e}")
+            raise RuntimeError(f"Unknown error: {e}.")
 
         api_instance.create_namespaced_secret(
             body=client.V1Secret(
                 api_version="v1",
                 kind="Secret",
                 metadata={"name": secret["secret_name"], "type": "Opaque"},
-                data=toolz.valmap(
+                data=gamla.valmap(
                     lambda s: base64.b64encode(os.getenv(s, s).encode()).decode(),
                     secret["data"],
                 ),
@@ -68,7 +66,8 @@ def create_cron_job(
         api_version="batch/v1beta1",
         kind="CronJob",
         metadata=client.V1ObjectMeta(
-            name=_get_cronjob_name(pod_name), labels={"repository": repo_name},
+            name=_cronjob_name(pod_name),
+            labels={"repository": repo_name},
         ),
         spec=client.V1beta1CronJobSpec(
             schedule=schedule,
@@ -80,7 +79,7 @@ def create_cron_job(
                     backoff_limit=1,
                     template=client.V1PodTemplateSpec(
                         metadata=client.V1ObjectMeta(labels=labels),
-                        spec=_get_pod_manifest(
+                        spec=_pod_manifest(
                             pod_name,
                             image,
                             tag,
@@ -99,17 +98,17 @@ def create_cron_job(
     _set_dry_run(options, dry_run)
     try:
         api_response = client.BatchV1beta1Api().patch_namespaced_cron_job(
-            **toolz.assoc(options, "name", _get_cronjob_name(pod_name))
+            **gamla.add_key_value("name", _cronjob_name(pod_name))(options)
         )
     except rest.ApiException:
         logging.info(f"CronJob {options.get('name')} doesn't exist, creating...")
         api_response = client.BatchV1beta1Api().create_namespaced_cron_job(**options)
-    logging.info(f"CronJob updated: {api_response}")
+    logging.info(f"CronJob updated: {api_response}.")
 
     return pod_name
 
 
-def _get_pod_manifest(
+def _pod_manifest(
     pod_name: Text,
     image: Text,
     tag: Text,
@@ -119,42 +118,48 @@ def _get_pod_manifest(
     args: List[Text],
     node_selector: Optional[Dict[Text, Text]],
 ):
-    return toolz.pipe(
+    return gamla.pipe(
         (pod_name, image, tag, node_selector),
         gamla.star(_make_base_pod_spec),
         gamla.assoc_in(
             keys=["containers", 0, "env"],
-            value=toolz.pipe(
+            value=gamla.pipe(
                 env_variables,
                 gamla.map(
-                    lambda env_var: toolz.update_in(
-                        env_var, ["value"], lambda value: os.getenv(value, value),
+                    lambda env_var: gamla.update_in(
+                        env_var,
+                        ["value"],
+                        lambda value: os.getenv(value, value),
                     ),
                 ),
                 tuple,
             ),
         ),
-        toolz.compose_left(
-            toolz.juxt(*map(_add_volume_from_secret, secrets)), toolz.merge,
+        gamla.compose_left(
+            gamla.juxt(*map(_add_volume_from_secret, secrets)),
+            gamla.merge,
         )
         if secrets
-        else toolz.identity,
+        else gamla.identity,
         gamla.assoc_in(keys=["containers", 0, "command"], value=command)
         if command
-        else toolz.identity,
+        else gamla.identity,
         gamla.assoc_in(keys=["containers", 0, "args"], value=args)
         if args
-        else toolz.identity,
+        else gamla.identity,
     )
 
 
 def _make_base_pod_spec(
-    pod_name: Text, image: Text, tag: Text, node_selector: Optional[Dict[Text, Text]],
+    pod_name: Text,
+    image: Text,
+    tag: Text,
+    node_selector: Optional[Dict[Text, Text]],
 ):
     return {
         "containers": [{"image": f"{image}:{tag}", "name": f"{pod_name}-container"}],
         "imagePullSecrets": [
-            {"name": f"{_get_repo_name_from_image(image)}-gitlab-creds"},
+            {"name": f"{_repo_name_from_image(image)}-gitlab-creds"},
         ],
         "restartPolicy": "Never",
         "nodeSelector": node_selector or {"role": "jobs"},
@@ -162,7 +167,7 @@ def _make_base_pod_spec(
 
 
 def _add_volume_from_secret(secret: Dict[Text, Text]):
-    return toolz.compose_left(
+    return gamla.compose_left(
         gamla.assoc_in(
             keys=["containers", 0, "volumeMounts"],
             value=[
@@ -185,7 +190,7 @@ def _add_volume_from_secret(secret: Dict[Text, Text]):
     )
 
 
-@toolz.curry
+@gamla.curry
 def _delete_cron_job(api_instance: client.BatchV1beta1Api, dry_run: bool, name: Text):
     options = {"name": name, "namespace": "default"}
     _set_dry_run(options, dry_run)
@@ -198,27 +203,28 @@ def delete_old_cron_jobs(repo_name: Text, new_jobs, dry_run: bool = False):
     api_response = api_instance.list_namespaced_cron_job(**options)
     gamla.pipe(
         api_response.items,
-        curried.map(lambda cronjob: cronjob.metadata.name),
-        curried.remove(
-            curried.operator.contains(
+        gamla.map(lambda cronjob: cronjob.metadata.name),
+        gamla.remove(
+            gamla.contains(
                 gamla.pipe(
                     new_jobs,
                     gamla.map(
                         gamla.compose_left(
-                            curried.get_in(["run", "pod_name"]), _get_cronjob_name,
+                            gamla.get_in(["run", "pod_name"]),
+                            _cronjob_name,
                         ),
                     ),
                     tuple,
                 ),
             ),
         ),
-        curried.map(_delete_cron_job(api_instance, dry_run)),
+        gamla.map(_delete_cron_job(api_instance, dry_run)),
         tuple,
     )
     logging.info("Deleted old CronJobs.")
 
 
-def _get_repo_name_from_image(image: Text):
+def _repo_name_from_image(image: Text):
     return image.split(":")[0].split("/")[-1]
 
 
