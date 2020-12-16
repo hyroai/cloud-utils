@@ -21,24 +21,21 @@ class VersionNotFound(Exception):
 
 @gamla.curry
 def _write_to_versions_file(identifier: Text, hash_to_load: Text, versions_file):
-    versions_file.seek(0)
-    json.dump(
-        gamla.pipe(
-            json.load(versions_file),
-            gamla.add_key_value(
-                identifier,
-                {
-                    _HASH_VERSION_KEY: hash_to_load,
-                    _LAST_RUN_TIMESTAMP: datetime.datetime.now().isoformat(),
-                },
-            ),
-            dict.items,
-            sorted,
-            dict,
+    new_versions_dict = gamla.pipe(
+        json.load(versions_file),
+        gamla.add_key_value(
+            identifier,
+            {
+                _HASH_VERSION_KEY: hash_to_load,
+                _LAST_RUN_TIMESTAMP: datetime.datetime.now().isoformat(),
+            },
         ),
-        versions_file,
-        indent=2,
+        dict.items,
+        sorted,
+        dict,
     )
+    versions_file.seek(0)
+    json.dump(new_versions_dict, versions_file, indent=2)
     versions_file.truncate()
 
 
