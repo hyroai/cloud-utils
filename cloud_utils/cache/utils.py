@@ -24,11 +24,14 @@ def _write_to_versions_file(identifier: Text, hash_to_load: Text, versions_file)
     versions_file.seek(0)
     json.dump(
         gamla.pipe(
-            {
-                _HASH_VERSION_KEY: hash_to_load,
-                _LAST_RUN_TIMESTAMP: datetime.datetime.now().isoformat(),
-            },
-            gamla.add_key_value(json.load(versions_file), identifier),
+            json.load(versions_file),
+            gamla.add_key_value(
+                identifier,
+                {
+                    _HASH_VERSION_KEY: hash_to_load,
+                    _LAST_RUN_TIMESTAMP: datetime.datetime.now().isoformat(),
+                },
+            ),
             dict.items,
             sorted,
             dict,
@@ -54,7 +57,7 @@ def _write_hash_to_versions_file(
 
 def _time_since_last_updated(identifier: Text):
     return gamla.compose_left(
-        gamla.get_in([identifier, _LAST_RUN_TIMESTAMP]),
+        gamla.get_in_or_none([identifier, _LAST_RUN_TIMESTAMP]),
         gamla.unless(
             gamla.equals(None),
             gamla.compose_left(
