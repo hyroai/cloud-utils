@@ -8,9 +8,6 @@ from typing import Callable, Text
 import async_lru
 import gamla
 import redis
-import toolz
-from toolz import curried
-from toolz.curried import operator
 
 from cloud_utils.cache import file_store, redis_utils
 
@@ -24,19 +21,21 @@ class VersionNotFound(Exception):
 
 @gamla.curry
 def _write_to_versions_file(identifier: Text, hash_to_load: Text, versions_file):
-    versions = toolz.pipe(
-        {
-            _HASH_VERSION_KEY: hash_to_load,
-            _LAST_RUN_TIMESTAMP: datetime.datetime.now().isoformat(),
-        },
-        curried.assoc(json.load(versions_file), identifier),
-        dict.items,
-        curried.sorted,
-        dict,
-    )
-
     versions_file.seek(0)
-    json.dump(versions, versions_file, indent=2)
+    json.dump(
+        gamla.pipe(
+            {
+                _HASH_VERSION_KEY: hash_to_load,
+                _LAST_RUN_TIMESTAMP: datetime.datetime.now().isoformat(),
+            },
+            gamla.add_key_value(json.load(versions_file), identifier),
+            dict.items,
+            sorted,
+            dict,
+        ),
+        versions_file,
+        indent=2,
+    )
     versions_file.truncate()
 
 
@@ -46,20 +45,19 @@ def _write_hash_to_versions_file(
     identifier: Text,
     hash_to_load: Text,
 ):
-    return toolz.pipe(
+    return gamla.pipe(
         versions_file_name,
         file_store.open_file("r+"),
         _write_to_versions_file(identifier, hash_to_load),
     )
 
 
-def _get_time_since_last_updated(identifier: Text):
+def _time_since_last_updated(identifier: Text):
     return gamla.compose_left(
-        curried.get_in([identifier, _LAST_RUN_TIMESTAMP]),
-        gamla.ternary(
-            operator.eq(None),
-            gamla.just(None),
-            toolz.compose_left(
+        gamla.get_in([identifier, _LAST_RUN_TIMESTAMP]),
+        gamla.unless(
+            gamla.equals(None),
+            gamla.compose_left(
                 datetime.datetime.fromisoformat,
                 lambda last_updated: datetime.datetime.now() - last_updated,
             ),
@@ -78,20 +76,20 @@ def _should_update(
         gamla.alljuxt(
             gamla.just(update),
             gamla.compose_left(
-                _get_time_since_last_updated(identifier),
+                _time_since_last_updated(identifier),
                 gamla.anyjuxt(
-                    operator.eq(None),
-                    operator.lt(datetime.timedelta(hours=ttl_hours)),
+                    gamla.equals(None),
+                    gamla.greater_than(datetime.timedelta(hours=ttl_hours)),
                 ),
             ),
         ),
     )
 
 
-_get_total_hours_since_update = gamla.ternary(
-    operator.eq(None),
+_total_hours_since_update = gamla.ternary(
+    gamla.equals(None),
     gamla.just(0),
-    toolz.compose_left(lambda time_span: time_span.total_seconds() / 3600, round),
+    gamla.compose_left(lambda time_span: time_span.total_seconds() / 3600, round),
 )
 
 
@@ -113,10 +111,10 @@ def auto_updating_cache(
         gamla.just(versions_file_path),
         file_store.open_file("r"),
         json.load,
-        curried.do(
-            toolz.compose_left(
-                _get_time_since_last_updated(identifier),
-                _get_total_hours_since_update,
+        gamla.side_effect(
+            gamla.compose_left(
+                _time_since_last_updated(identifier),
+                _total_hours_since_update,
                 lambda hours_since_last_update: f"Loading cache for [{identifier}]. Last updated {hours_since_last_update} hours ago.",
                 logging.info,
             ),
@@ -126,7 +124,7 @@ def auto_updating_cache(
             gamla.compose_left(
                 gamla.ignore_input(factory),
                 file_store.save_to_bucket_return_hash(environment, bucket_name),
-                curried.do(
+                gamla.side_effect(
                     _write_hash_to_versions_file(versions_file_path, identifier),
                 ),
                 gamla.log_text(f"Finished updating cache for [{identifier}]."),
@@ -136,7 +134,7 @@ def auto_updating_cache(
                     gamla.inside(identifier),
                     VersionNotFound(identifier),
                 ),
-                curried.get_in([identifier, _HASH_VERSION_KEY]),
+                gamla.get_in([identifier, _HASH_VERSION_KEY]),
             ),
         ),
     )

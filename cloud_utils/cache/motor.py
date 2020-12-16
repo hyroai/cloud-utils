@@ -3,10 +3,9 @@ from typing import Text
 import gamla
 import pymongo
 from motor import motor_asyncio
-from toolz import curried
 
 
-def get_database_collection(
+def database_collection(
     mongodb_uri: Text,
     collection_name: Text,
     database: Text,
@@ -14,7 +13,7 @@ def get_database_collection(
     return gamla.pipe(
         mongodb_uri,
         motor_asyncio.AsyncIOMotorClient,
-        curried.get_in([database, collection_name]),
+        gamla.get_in([database, collection_name]),
     )
 
 
