@@ -1,3 +1,4 @@
+import gzip
 import io
 import os
 import pathlib
@@ -14,13 +15,24 @@ def _blob_service():
     )
 
 
+def _to_bytes(text: Text):
+    return bytes(text, "utf-8")
+
+
 def upload_blob(bucket_name: Text, blob_name: Text, obj: Any):
-    stream = io.BytesIO(bytes(gamla.to_json(obj), "utf-8"))
-    _blob_service().create_blob_from_stream(
-        bucket_name,
-        blob_name,
-        stream,
-        timeout=1800,
+    return gamla.pipe(
+        obj,
+        gamla.to_json,
+        _to_bytes,
+        gzip.compress,
+        io.BytesIO,
+        lambda stream: _blob_service().create_blob_from_stream(
+            bucket_name,
+            blob_name,
+            stream,
+            timeout=1800,
+            content_settings=blob.ContentSettings(content_encoding="gzip"),
+        ),
     )
 
 
