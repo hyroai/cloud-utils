@@ -10,21 +10,17 @@ from cloud_utils.scheduler import kubernetes_connector
 
 
 @gamla.curry
-async def deploy_schedule(
-    repo_name: Text, tag: Text, dry_run: bool, job_configs: Iterable[Dict]
-):
+async def deploy_schedule(tag: Text, dry_run: bool, job_configs: Iterable[Dict]):
     job_configs = tuple(job_configs)  # Defend from generators.
     for config in job_configs:
         kubernetes_connector.create_cron_job(
             **{
                 **config["run"],
                 "schedule": config["schedule"],
-                "repo_name": repo_name,
                 "tag": tag,
                 "dry_run": dry_run,
             }
         )
-    kubernetes_connector.delete_old_cron_jobs(repo_name, job_configs, dry_run=dry_run)
 
 
 def _get_filter_stage(args):
@@ -44,15 +40,9 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         description="Creates k8s CronJobs from schedule.json file.",
     )
     parser.add_argument(
-        "repo",
-        type=str,
-        help="Repository name or another unique identifier for the jobs.",
-    )
-    parser.add_argument(
         "--schedule",
         type=str,
         help="Path to schedule file, defaults to `schedule.json`.",
-        default="schedule.json",
     )
     parser.add_argument(
         "--tag",
@@ -73,7 +63,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         open,
         json.load,
         _get_filter_stage(args),
-        gamla.star(deploy_schedule(args.repo, args.tag, False)),
+        gamla.star(deploy_schedule(args.tag, False)),
         asyncio.get_event_loop().run_until_complete,
     )
     return 0

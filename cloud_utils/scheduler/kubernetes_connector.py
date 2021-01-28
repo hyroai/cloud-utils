@@ -53,7 +53,6 @@ def create_cron_job(
     command: List[Text],
     args: List[Text],
     schedule: Text,
-    repo_name: Text,
     dry_run: bool,
     node_selector: Optional[Dict[Text, Text]] = None,
     labels: Optional[Dict[Text, Text]] = None,
@@ -65,10 +64,6 @@ def create_cron_job(
     cron_job = client.V1beta1CronJob(
         api_version="batch/v1beta1",
         kind="CronJob",
-        metadata=client.V1ObjectMeta(
-            name=_cronjob_name(pod_name),
-            labels={"repository": repo_name},
-        ),
         spec=client.V1beta1CronJobSpec(
             schedule=schedule,
             concurrency_policy="Forbid",
@@ -188,40 +183,6 @@ def _add_volume_from_secret(secret: Dict[Text, Text]):
             ],
         ),
     )
-
-
-@gamla.curry
-def _delete_cron_job(api_instance: client.BatchV1beta1Api, dry_run: bool, name: Text):
-    options = {"name": name, "namespace": "default"}
-    _set_dry_run(options, dry_run)
-    api_instance.delete_namespaced_cron_job(**options)
-
-
-def delete_old_cron_jobs(repo_name: Text, new_jobs, dry_run: bool = False):
-    api_instance = client.BatchV1beta1Api()
-    options = {"namespace": "default", "label_selector": f"repository={repo_name}"}
-    api_response = api_instance.list_namespaced_cron_job(**options)
-    gamla.pipe(
-        api_response.items,
-        gamla.map(lambda cronjob: cronjob.metadata.name),
-        gamla.remove(
-            gamla.contains(
-                gamla.pipe(
-                    new_jobs,
-                    gamla.map(
-                        gamla.compose_left(
-                            gamla.get_in(["run", "pod_name"]),
-                            _cronjob_name,
-                        ),
-                    ),
-                    tuple,
-                ),
-            ),
-        ),
-        gamla.map(_delete_cron_job(api_instance, dry_run)),
-        tuple,
-    )
-    logging.info("Deleted old CronJobs.")
 
 
 def _repo_name_from_image(image: Text):
