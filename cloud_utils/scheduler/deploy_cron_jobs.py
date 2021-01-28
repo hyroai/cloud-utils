@@ -23,17 +23,6 @@ async def deploy_schedule(tag: Text, dry_run: bool, job_configs: Iterable[Dict])
         )
 
 
-def _get_filter_stage(args):
-    if args.job:
-        return gamla.filter(
-            gamla.compose_left(
-                gamla.get_in(["run", "pod_name"]),
-                gamla.equals(args.job),
-            ),
-        )
-    return gamla.identity
-
-
 def main(argv: Optional[Sequence[str]] = None) -> int:
     argv = argv if argv is not None else sys.argv[1:]
     parser = argparse.ArgumentParser(
