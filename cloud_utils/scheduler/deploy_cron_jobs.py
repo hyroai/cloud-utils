@@ -50,19 +50,12 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         help="The image tag, defaults to latest.",
         default="latest",
     )
-    parser.add_argument(
-        "--job",
-        type=str,
-        help="The entries in the configuration have pod names which serve as the job key (they are assumed to be unique).",
-        default=None,
-    )
+
     args = parser.parse_args(argv)
 
     gamla.pipe(
         args.schedule,
-        open,
-        json.load,
-        _get_filter_stage(args),
+        lambda filename: json.load(open(filename)),
         gamla.star(deploy_schedule(args.tag, False)),
         asyncio.get_event_loop().run_until_complete,
     )
