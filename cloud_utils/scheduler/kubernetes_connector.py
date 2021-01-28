@@ -64,6 +64,7 @@ def create_cron_job(
     cron_job = client.V1beta1CronJob(
         api_version="batch/v1beta1",
         kind="CronJob",
+        metadata=client.V1ObjectMeta(name=_cronjob_name(pod_name)),
         spec=client.V1beta1CronJobSpec(
             schedule=schedule,
             concurrency_policy="Forbid",
