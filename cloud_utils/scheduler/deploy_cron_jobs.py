@@ -4,12 +4,16 @@ import json
 import sys
 from typing import Dict, Iterable, Optional, Sequence, Text
 
+import gamla
+
 from cloud_utils.scheduler import kubernetes_connector
 
 
+@gamla.curry
 async def deploy_schedule(
-    job_configs: Iterable[Dict], repo_name: Text, tag: Text, dry_run: bool = False
+    repo_name: Text, tag: Text, dry_run: bool, job_configs: Iterable[Dict]
 ):
+    job_configs = tuple(job_configs)  # Defend from generators.
     for config in job_configs:
         kubernetes_connector.create_cron_job(
             **{
@@ -21,6 +25,17 @@ async def deploy_schedule(
             }
         )
     kubernetes_connector.delete_old_cron_jobs(repo_name, job_configs, dry_run=dry_run)
+
+
+def _get_filter_stage(args):
+    if args.job:
+        return gamla.filter(
+            gamla.compose_left(
+                gamla.get_in(["run", "pod_name"]),
+                gamla.equals(args.job),
+            ),
+        )
+    return gamla.identity
 
 
 def main(argv: Optional[Sequence[str]] = None) -> int:
@@ -45,9 +60,21 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         help="The image tag, defaults to latest.",
         default="latest",
     )
+    parser.add_argument(
+        "--job",
+        type=str,
+        help="The entries in the configuration have pod names which serve as the job key (they are assumed to be unique).",
+        default=None,
+    )
     args = parser.parse_args(argv)
-    asyncio.get_event_loop().run_until_complete(
-        deploy_schedule(json.load(open(args.schedule)), args.repo, args.tag),
+
+    gamla.pipe(
+        args.schedule,
+        open,
+        json.load,
+        _get_filter_stage(args),
+        gamla.star(deploy_schedule(args.repo, args.tag, False)),
+        asyncio.get_event_loop().run_until_complete,
     )
     return 0
 
