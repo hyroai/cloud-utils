@@ -3,12 +3,9 @@ import json
 import sys
 from typing import Dict, Iterable, Optional, Sequence, Text
 
-import gamla
-
 from cloud_utils.scheduler import kubernetes_connector
 
 
-@gamla.curry
 def deploy_schedule(tag: Text, dry_run: bool, job_configs: Iterable[Dict]):
     job_configs = tuple(job_configs)  # Defend from generators.
     for config in job_configs:
