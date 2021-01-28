@@ -1,5 +1,4 @@
 import argparse
-import asyncio
 import json
 import sys
 from typing import Dict, Iterable, Optional, Sequence, Text
@@ -10,7 +9,7 @@ from cloud_utils.scheduler import kubernetes_connector
 
 
 @gamla.curry
-async def deploy_schedule(tag: Text, dry_run: bool, job_configs: Iterable[Dict]):
+def deploy_schedule(tag: Text, dry_run: bool, job_configs: Iterable[Dict]):
     job_configs = tuple(job_configs)  # Defend from generators.
     for config in job_configs:
         kubernetes_connector.create_cron_job(
@@ -42,12 +41,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
 
     args = parser.parse_args(argv)
 
-    gamla.pipe(
-        args.schedule,
-        lambda filename: json.load(open(filename)),
-        gamla.star(deploy_schedule(args.tag, False)),
-        asyncio.get_event_loop().run_until_complete,
-    )
+    deploy_schedule(args.tag, False, json.load(open(args.schedule)))
     return 0
 
 
