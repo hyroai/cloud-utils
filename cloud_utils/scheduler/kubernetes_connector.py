@@ -57,10 +57,13 @@ def create_job(
     dry_run: bool,
     node_selector: Optional[Dict[Text, Text]] = None,
     labels: Optional[Dict[Text, Text]] = None,
+    extra_arg: Optional[Text] = None,
 ) -> Text:
     if secrets:
         for secret in secrets:
             _create_secret(secret)
+    if extra_arg:
+        command[-1] += f" {extra_arg}"
     job = client.V1Job(
         api_version="batch/v1",
         kind="Job",

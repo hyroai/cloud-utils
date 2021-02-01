@@ -6,7 +6,7 @@ from typing import Dict, Iterable, Optional, Sequence, Text
 from cloud_utils.scheduler import kubernetes_connector
 
 
-def deploy_jobs(tag: Text, dry_run: bool, job_configs: Iterable[Dict]):
+def deploy_jobs(tag: Text, dry_run: bool, job_configs: Iterable[Dict], extra_arg: Text):
     job_configs = tuple(job_configs)  # Defend from generators.
     for config in job_configs:
         kubernetes_connector.create_job(
@@ -14,6 +14,7 @@ def deploy_jobs(tag: Text, dry_run: bool, job_configs: Iterable[Dict]):
                 **config["run"],
                 "tag": tag,
                 "dry_run": dry_run,
+                "extra_arg": extra_arg,
             }
         )
 
@@ -34,10 +35,15 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         help="The image tag, defaults to latest.",
         default="latest",
     )
+    parser.add_argument(
+        "--extra_argument",
+        type=str,
+        help="Additional single argument to the pod command",
+    )
 
     args = parser.parse_args(argv)
 
-    deploy_jobs(args.tag, False, json.load(open(args.jobs)))
+    deploy_jobs(args.tag, False, json.load(open(args.jobs)), args.extra_argument)
     return 0
 
 
