@@ -3,8 +3,9 @@ import json
 import sys
 from typing import Dict, Iterable, Optional, Sequence, Text
 
-from cloud_utils.scheduler import kubernetes_connector
 import gamla
+
+from cloud_utils.scheduler import kubernetes_connector
 
 
 def deploy_jobs(tag: Text, dry_run: bool, job_configs: Iterable[Dict], extra_arg: Text):
@@ -13,7 +14,7 @@ def deploy_jobs(tag: Text, dry_run: bool, job_configs: Iterable[Dict], extra_arg
         run = config["run"]
         gamla.pipe(
             kubernetes_connector.make_job_spec(run, tag, extra_arg),
-            kubernetes_connector.create_job(run["pod_name"], dry_run)
+            kubernetes_connector.create_job(run["pod_name"], dry_run),
         )
 
 

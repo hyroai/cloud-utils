@@ -2,7 +2,7 @@ import base64
 import logging
 import os
 import time
-from typing import Dict, List, Optional, Text, Any
+from typing import Any, Dict, List, Optional, Text
 
 import gamla
 from kubernetes import client
@@ -184,7 +184,7 @@ def _make_pod_manifest(
 @gamla.curry
 def _make_job_spec(
     labels: Dict[Text, Text],
-    pod_manifest: client.V1PodSpec
+    pod_manifest: client.V1PodSpec,
 ) -> client.V1JobSpec:
     return client.V1JobSpec(
         ttl_seconds_after_finished=60,
@@ -246,7 +246,7 @@ def make_job_spec(run, tag, extra_arg):
             run["pod_name"],
             run["image"],
             tag,
-            run.get("node_selector")
+            run.get("node_selector"),
         ),
         _make_pod_manifest(
             run.get("env_variables"),
