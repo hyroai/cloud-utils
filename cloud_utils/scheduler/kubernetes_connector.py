@@ -2,7 +2,7 @@ import base64
 import logging
 import os
 import time
-from typing import Dict, List, Optional, Text
+from typing import Dict, List, Optional, Text, Any
 
 import gamla
 from kubernetes import client
@@ -46,61 +46,49 @@ def _create_secret(secret: Dict[Text, Text]):
         logging.info(f"Secret '{secret['secret_name']}' created.")
 
 
+def _delete_job(name, options):
+    """Deletes job by name.
+    Raises ApiException exception if no there is no job with given name"""
+    client.BatchV1Api().delete_namespaced_job(
+        **gamla.pipe(
+            options,
+            gamla.add_key_value("name", name),
+            gamla.add_key_value(
+                "body",
+                client.V1DeleteOptions(propagation_policy="Foreground"),
+            ),
+        )
+    )
+
+
+def _wait_for_job_deletion(name, options):
+    """Waits until job is deleted
+    Raises ApiException exception when job with given name no longer exist"""
+    for i in range(12):
+        logging.debug("Waiting for old job to terminate...")
+        time.sleep(5)
+        client.BatchV1Api().read_namespaced_job(
+            **gamla.add_key_value("name", name)(options)
+        )
+
+
+@gamla.curry
 def create_job(
     pod_name: Text,
-    image: Text,
-    tag: Text,
-    env_variables: List[Dict[Text, Text]],
-    secrets: List[Dict[Text, Text]],
-    command: List[Text],
-    args: List[Text],
     dry_run: bool,
-    node_selector: Optional[Dict[Text, Text]] = None,
-    labels: Optional[Dict[Text, Text]] = None,
-    extra_arg: Optional[Text] = None,
+    job_spec: client.V1JobSpec,
 ) -> Text:
-    if secrets:
-        for secret in secrets:
-            _create_secret(secret)
-    if extra_arg:
-        command[-1] += f" {extra_arg}"
     job = client.V1Job(
         api_version="batch/v1",
         kind="Job",
         metadata=client.V1ObjectMeta(name=_job_name(pod_name)),
-        spec=_make_job_spec(
-            pod_name,
-            image,
-            tag,
-            env_variables,
-            secrets,
-            command,
-            args,
-            node_selector,
-            labels,
-        ),
+        spec=job_spec,
     )
     options = {"namespace": "default", "pretty": "true"}
     _set_dry_run(options, dry_run)
     try:
-        # Delete job if exists
-        client.BatchV1Api().delete_namespaced_job(
-            **gamla.pipe(
-                options,
-                gamla.add_key_value("name", _job_name(pod_name)),
-                gamla.add_key_value(
-                    "body",
-                    client.V1DeleteOptions(propagation_policy="Foreground"),
-                ),
-            )
-        )
-        # Wait until job is deleted
-        for i in range(12):
-            logging.debug("Waiting for old job to terminate...")
-            time.sleep(5)
-            client.BatchV1Api().read_namespaced_job(
-                **gamla.add_key_value("name", _job_name(pod_name))(options)
-            )
+        _delete_job(_job_name(pod_name), options)
+        _wait_for_job_deletion(_job_name(pod_name), options)
         logging.error(f"Unable to delete job '{_job_name(pod_name)}'")
     except rest.ApiException:
         logging.debug("Old job deleted")
@@ -113,23 +101,13 @@ def create_job(
     return pod_name
 
 
+@gamla.curry
 def create_cron_job(
     pod_name: Text,
-    image: Text,
-    tag: Text,
-    env_variables: List[Dict[Text, Text]],
-    secrets: List[Dict[Text, Text]],
-    command: List[Text],
-    args: List[Text],
     schedule: Text,
     dry_run: bool,
-    node_selector: Optional[Dict[Text, Text]] = None,
-    labels: Optional[Dict[Text, Text]] = None,
+    job_spec: client.V1JobSpec,
 ) -> Text:
-    if secrets:
-        for secret in secrets:
-            _create_secret(secret)
-
     cron_job = client.V1beta1CronJob(
         api_version="batch/v1beta1",
         kind="CronJob",
@@ -140,17 +118,7 @@ def create_cron_job(
             successful_jobs_history_limit=1,
             failed_jobs_history_limit=1,
             job_template=client.V1beta1JobTemplateSpec(
-                spec=_make_job_spec(
-                    pod_name,
-                    image,
-                    tag,
-                    env_variables,
-                    secrets,
-                    command,
-                    args,
-                    node_selector,
-                    labels,
-                ),
+                spec=job_spec,
             ),
         ),
     )
@@ -168,19 +136,22 @@ def create_cron_job(
     return pod_name
 
 
-def _pod_manifest(
-    pod_name: Text,
-    image: Text,
-    tag: Text,
+@gamla.curry
+def _make_pod_manifest(
     env_variables: List[Dict[Text, Text]],
     secrets: List[Dict[Text, Text]],
     command: List[Text],
     args: List[Text],
-    node_selector: Optional[Dict[Text, Text]],
-):
+    extra_arg: Text,
+    base_pod_spec: Dict[Text, Any],
+) -> client.V1PodSpec:
+    if secrets:
+        for secret in secrets:
+            _create_secret(secret)
+    if extra_arg:
+        command[-1] += f" {extra_arg}"
     return gamla.pipe(
-        (pod_name, image, tag, node_selector),
-        gamla.star(_make_base_pod_spec),
+        base_pod_spec,
         gamla.assoc_in(
             keys=["containers", 0, "env"],
             value=gamla.pipe(
@@ -210,32 +181,17 @@ def _pod_manifest(
     )
 
 
+@gamla.curry
 def _make_job_spec(
-    pod_name: Text,
-    image: Text,
-    tag: Text,
-    env_variables: List[Dict[Text, Text]],
-    secrets: List[Dict[Text, Text]],
-    command: List[Text],
-    args: List[Text],
-    node_selector: Optional[Dict[Text, Text]] = None,
-    labels: Optional[Dict[Text, Text]] = None,
+    labels: Dict[Text, Text],
+    pod_manifest: client.V1PodSpec
 ) -> client.V1JobSpec:
     return client.V1JobSpec(
         ttl_seconds_after_finished=60,
         backoff_limit=1,
         template=client.V1PodTemplateSpec(
             metadata=client.V1ObjectMeta(labels=labels),
-            spec=_pod_manifest(
-                pod_name,
-                image,
-                tag,
-                env_variables,
-                secrets,
-                command,
-                args,
-                node_selector,
-            ),
+            spec=pod_manifest,
         ),
     )
 
@@ -245,7 +201,7 @@ def _make_base_pod_spec(
     image: Text,
     tag: Text,
     node_selector: Optional[Dict[Text, Text]],
-):
+) -> Dict[Text, Any]:
     return {
         "containers": [{"image": f"{image}:{tag}", "name": f"{pod_name}-container"}],
         "imagePullSecrets": [
@@ -282,6 +238,25 @@ def _add_volume_from_secret(secret: Dict[Text, Text]):
 
 def _repo_name_from_image(image: Text):
     return image.split(":")[0].split("/")[-1]
+
+
+def make_job_spec(run, tag, extra_arg):
+    return gamla.pipe(
+        _make_base_pod_spec(
+            run["pod_name"],
+            run["image"],
+            tag,
+            run.get("node_selector")
+        ),
+        _make_pod_manifest(
+            run.get("env_variables"),
+            run.get("secrets"),
+            run.get("command"),
+            run.get("args"),
+            extra_arg,
+        ),
+        _make_job_spec(run.get("labels")),
+    )
 
 
 configure.init_kubernetes_client()
