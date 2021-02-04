@@ -28,7 +28,10 @@
           "volume_name": "gcp-credentials"
         }
       ],
-      "command": ["python", "default_insight_reports.py"],
+      "command": [
+        "python",
+        "default_insight_reports.py"
+      ],
       "args": [],
       "labels": {
         "testlabel": "some-label"
