@@ -240,7 +240,11 @@ def _repo_name_from_image(image: Text):
     return image.split(":")[0].split("/")[-1]
 
 
-def make_job_spec(run, tag, extra_arg):
+def make_job_spec(
+    run: Dict[Text, Text],
+    tag: Text,
+    extra_arg: Text,
+) -> client.V1JobSpec:
     return gamla.pipe(
         _make_base_pod_spec(
             run["pod_name"],
