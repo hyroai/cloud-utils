@@ -200,7 +200,7 @@ def _make_base_pod_spec(
     pod_name: Text,
     image: Text,
     tag: Text,
-    node_selector: Optional[Dict[Text, Text]],
+    node_selector: Optional[Text],
 ) -> Dict[Text, Any]:
     return {
         "containers": [{"image": f"{image}:{tag}", "name": f"{pod_name}-container"}],
@@ -243,7 +243,7 @@ def _repo_name_from_image(image: Text):
 def make_job_spec(
     run: Dict[Text, Text],
     tag: Text,
-    extra_arg: Text,
+    extra_arg: Optional[Text],
 ) -> client.V1JobSpec:
     return gamla.pipe(
         _make_base_pod_spec(
