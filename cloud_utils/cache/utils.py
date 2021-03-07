@@ -3,7 +3,7 @@ import functools
 import inspect
 import json
 import logging
-from typing import Callable, Text
+from typing import Callable, Dict, Text
 
 import async_lru
 import gamla
@@ -70,9 +70,10 @@ def _should_update(
     update: bool,
     force_update: bool,
     ttl_hours: int,
-) -> bool:
+) -> Callable[[Dict], bool]:
     return gamla.anyjuxt(
         gamla.just(force_update),
+        gamla.complement(gamla.inside(identifier)),
         gamla.alljuxt(
             gamla.just(update),
             gamla.compose_left(
@@ -129,13 +130,7 @@ def auto_updating_cache(
                 ),
                 gamla.log_text(f"Finished updating cache for [{identifier}]."),
             ),
-            gamla.compose_left(
-                gamla.check(
-                    gamla.inside(identifier),
-                    VersionNotFound(identifier),
-                ),
-                gamla.get_in([identifier, _HASH_VERSION_KEY]),
-            ),
+            gamla.get_in([identifier, _HASH_VERSION_KEY]),
         ),
     )
 
