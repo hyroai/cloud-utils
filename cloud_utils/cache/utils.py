@@ -54,13 +54,10 @@ def _write_hash_to_versions_file(
 
 def _time_since_last_updated(identifier: Text):
     return gamla.compose_left(
-        gamla.get_in_or_none([identifier, _LAST_RUN_TIMESTAMP]),
-        gamla.unless(
-            gamla.equals(None),
-            gamla.compose_left(
-                datetime.datetime.fromisoformat,
-                lambda last_updated: datetime.datetime.now() - last_updated,
-            ),
+        gamla.get_in([identifier, _LAST_RUN_TIMESTAMP]),
+        gamla.compose_left(
+            datetime.datetime.fromisoformat,
+            lambda last_updated: datetime.datetime.now() - last_updated,
         ),
     )
 
@@ -78,10 +75,7 @@ def _should_update(
             gamla.just(update),
             gamla.compose_left(
                 _time_since_last_updated(identifier),
-                gamla.anyjuxt(
-                    gamla.equals(None),
-                    gamla.greater_than(datetime.timedelta(hours=ttl_hours)),
-                ),
+                gamla.greater_than(datetime.timedelta(hours=ttl_hours)),
             ),
         ),
     )
