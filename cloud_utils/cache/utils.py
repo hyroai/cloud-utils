@@ -54,10 +54,13 @@ def _write_hash_to_versions_file(
 
 def _time_since_last_updated(identifier: Text):
     return gamla.compose_left(
-        gamla.get_in([identifier, _LAST_RUN_TIMESTAMP]),
-        gamla.compose_left(
-            datetime.datetime.fromisoformat,
-            lambda last_updated: datetime.datetime.now() - last_updated,
+        gamla.get_in_or_none([identifier, _LAST_RUN_TIMESTAMP]),
+        gamla.alljuxt(
+            gamla.identity,
+            gamla.compose_left(
+                datetime.datetime.fromisoformat,
+                lambda last_updated: datetime.datetime.now() - last_updated,
+            ),
         ),
     )
 
