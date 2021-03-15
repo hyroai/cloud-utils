@@ -37,10 +37,14 @@ def upload_blob(bucket_name: Text, blob_name: Text, obj: Any):
 
 
 @gamla.curry
-def download_blob_as_string(bucket_name: Text, blob_name: Text) -> Text:
+def download_blob_as_string(
+    bucket_name: Text,
+    blob_name: Text,
+    encoding: Text = "utf-8",
+) -> Text:
     return (
         _blob_service()
-        .get_blob_to_text(bucket_name, blob_name, encoding="utf-8")
+        .get_blob_to_text(bucket_name, blob_name, encoding=encoding)
         .content
     )
 
