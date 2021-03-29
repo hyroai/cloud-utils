@@ -1,19 +1,21 @@
 import json
 import pathlib
 
-import pytest
-
-from cloud_utils.scheduler import deploy_cron_jobs
-
-# All test coroutines will be treated as marked.
-pytestmark = pytest.mark.asyncio
+from cloud_utils.scheduler import deploy_cron_jobs, run_jobs
 
 
-async def test_scheduler():
-
-    await deploy_cron_jobs.deploy_schedule(
-        json.load((pathlib.Path(__file__).parent / "test_schedule.json").open()),
-        "test-repo-name",
+def test_scheduler():
+    deploy_cron_jobs.deploy_schedule(
         "test-tag",
-        dry_run=True,
+        True,
+        json.load((pathlib.Path(__file__).parent / "test_schedule.json").open()),
+    )
+
+
+def test_run_jobs():
+    run_jobs.deploy_jobs(
+        "test-tag",
+        True,
+        json.load((pathlib.Path(__file__).parent / "test_schedule.json").open()),
+        "extra-arg",
     )

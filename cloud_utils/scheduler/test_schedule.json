@@ -2,7 +2,7 @@
   {
     "schedule": "0 8 * * *",
     "run": {
-      "pod_name": "insight-reports",
+      "pod_name": "insight-reports-test",
       "image": "registry.gitlab.com/airbud/analysis",
       "env_variables": [
         {
@@ -28,8 +28,14 @@
           "volume_name": "gcp-credentials"
         }
       ],
-      "command": ["python", "default_insight_reports.py"],
-      "args": []
+      "command": [
+        "python",
+        "default_insight_reports.py"
+      ],
+      "args": [],
+      "labels": {
+        "testlabel": "some-label"
+      }
     }
   }
 ]
