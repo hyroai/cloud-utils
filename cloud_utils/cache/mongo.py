@@ -7,7 +7,7 @@ ASCENDING = pymongo.ASCENDING
 DESCENDING = pymongo.DESCENDING
 
 
-def client(mongodb_uri: Text, **kwargs):
+def client(mongodb_uri: Text, **kwargs) -> pymongo.MongoClient:
     return pymongo.MongoClient(mongodb_uri, **kwargs)
 
 
@@ -15,7 +15,7 @@ def client(mongodb_uri: Text, **kwargs):
 def aggregate(
     collection: pymongo.collection.Collection,
     aggregation: Iterable[Dict[Text, Any]],
-) -> Tuple[Dict, ...]:
+) -> pymongo.command_cursor.CommandCursor:
     return collection.aggregate(list(aggregation), allowDiskUse=True)
 
 
@@ -23,7 +23,7 @@ def aggregate(
 def find(
     query: Dict[Text, Any],
     collection: pymongo.collection.Collection,
-) -> Tuple[Dict, ...]:
+) -> pymongo.cursor.Cursor:
     return collection.find(query)
 
 
@@ -35,7 +35,7 @@ def sort(
     collection: pymongo.collection.Collection,
     key: Text,
     direction: int,
-) -> Tuple[Dict, ...]:
+):
     return collection.sort(key, direction)
 
 
