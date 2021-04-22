@@ -1,4 +1,4 @@
-from typing import Any, Callable, Dict, Iterable, Text, Tuple
+from typing import Any, Callable, Dict, Iterable, Tuple
 
 import gamla
 import pymongo
@@ -7,21 +7,21 @@ ASCENDING = pymongo.ASCENDING
 DESCENDING = pymongo.DESCENDING
 
 
-def client(mongodb_uri: Text, **kwargs):
+def client(mongodb_uri: str, **kwargs) -> pymongo.MongoClient:
     return pymongo.MongoClient(mongodb_uri, **kwargs)
 
 
 @gamla.curry
 def aggregate(
     collection: pymongo.collection.Collection,
-    aggregation: Iterable[Dict[Text, Any]],
-) -> Tuple[Dict, ...]:
+    aggregation: Iterable[Dict[str, Any]],
+) -> pymongo.command_cursor.CommandCursor:
     return collection.aggregate(list(aggregation), allowDiskUse=True)
 
 
 @gamla.curry
 def find(
-    query: Dict[Text, Any],
+    query: Dict[str, Any],
     collection: pymongo.collection.Collection,
 ) -> Tuple[Dict, ...]:
     return collection.find(query)
@@ -33,14 +33,14 @@ find_all = find({})
 @gamla.curry
 def sort(
     collection: pymongo.collection.Collection,
-    key: Text,
+    key: str,
     direction: int,
 ) -> Tuple[Dict, ...]:
     return collection.sort(key, direction)
 
 
 @gamla.curry
-def count(collection: pymongo.collection.Collection, query: Dict[Text, Any]) -> int:
+def count(collection: pymongo.collection.Collection, query: Dict[str, Any]) -> int:
     return collection.count_documents(query)
 
 

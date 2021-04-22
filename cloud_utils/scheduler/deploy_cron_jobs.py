@@ -1,14 +1,14 @@
 import argparse
 import json
 import sys
-from typing import Dict, Iterable, Optional, Sequence, Text
+from typing import Dict, Iterable, Optional, Sequence
 
 import gamla
 
 from cloud_utils.scheduler import kubernetes_connector
 
 
-def deploy_schedule(tag: Text, dry_run: bool, job_configs: Iterable[Dict]):
+def deploy_schedule(tag: str, dry_run: bool, job_configs: Iterable[Dict]):
     job_configs = tuple(job_configs)  # Defend from generators.
     for config in job_configs:
         run = config["run"]

@@ -2,7 +2,7 @@ import base64
 import logging
 import os
 import time
-from typing import Any, Dict, List, Optional, Text
+from typing import Any, Dict, List, Optional
 
 import gamla
 from kubernetes import client
@@ -20,7 +20,7 @@ _cronjob_name = gamla.wrap_str("{}-cronjob")
 _job_name = gamla.wrap_str("{}-job")
 
 
-def _create_secret(secret: Dict[Text, Text]):
+def _create_secret(secret: Dict[str, str]):
     api_instance = client.CoreV1Api()
     try:
         api_instance.read_namespaced_secret(
@@ -74,10 +74,10 @@ def _wait_for_job_deletion(name, options):
 
 @gamla.curry
 def create_job(
-    pod_name: Text,
+    pod_name: str,
     dry_run: bool,
     job_spec: client.V1JobSpec,
-) -> Text:
+) -> str:
     job = client.V1Job(
         api_version="batch/v1",
         kind="Job",
@@ -103,11 +103,11 @@ def create_job(
 
 @gamla.curry
 def create_cron_job(
-    pod_name: Text,
-    schedule: Text,
+    pod_name: str,
+    schedule: str,
     dry_run: bool,
     job_spec: client.V1JobSpec,
-) -> Text:
+) -> str:
     cron_job = client.V1beta1CronJob(
         api_version="batch/v1beta1",
         kind="CronJob",
@@ -138,12 +138,12 @@ def create_cron_job(
 
 @gamla.curry
 def _make_pod_manifest(
-    env_variables: List[Dict[Text, Text]],
-    secrets: List[Dict[Text, Text]],
-    command: List[Text],
-    args: List[Text],
-    extra_arg: Text,
-    base_pod_spec: Dict[Text, Any],
+    env_variables: List[Dict[str, str]],
+    secrets: List[Dict[str, str]],
+    command: List[str],
+    args: List[str],
+    extra_arg: str,
+    base_pod_spec: Dict[str, Any],
 ) -> client.V1PodSpec:
     if secrets:
         for secret in secrets:
@@ -183,7 +183,7 @@ def _make_pod_manifest(
 
 @gamla.curry
 def _make_job_spec(
-    labels: Dict[Text, Text],
+    labels: Dict[str, str],
     pod_manifest: client.V1PodSpec,
 ) -> client.V1JobSpec:
     return client.V1JobSpec(
@@ -197,11 +197,11 @@ def _make_job_spec(
 
 
 def _make_base_pod_spec(
-    pod_name: Text,
-    image: Text,
-    tag: Text,
-    node_selector: Optional[Text],
-) -> Dict[Text, Any]:
+    pod_name: str,
+    image: str,
+    tag: str,
+    node_selector: Optional[str],
+) -> Dict[str, Any]:
     return {
         "containers": [{"image": f"{image}:{tag}", "name": f"{pod_name}-container"}],
         "imagePullSecrets": [
@@ -212,7 +212,7 @@ def _make_base_pod_spec(
     }
 
 
-def _add_volume_from_secret(secret: Dict[Text, Text]):
+def _add_volume_from_secret(secret: Dict[str, str]):
     return gamla.compose_left(
         gamla.assoc_in(
             keys=["containers", 0, "volumeMounts"],
@@ -236,14 +236,14 @@ def _add_volume_from_secret(secret: Dict[Text, Text]):
     )
 
 
-def _repo_name_from_image(image: Text):
+def _repo_name_from_image(image: str):
     return image.split(":")[0].split("/")[-1]
 
 
 def make_job_spec(
-    run: Dict[Text, Text],
-    tag: Text,
-    extra_arg: Optional[Text],
+    run: Dict[str, str],
+    tag: str,
+    extra_arg: Optional[str],
 ) -> client.V1JobSpec:
     return gamla.pipe(
         _make_base_pod_spec(

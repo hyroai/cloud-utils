@@ -3,7 +3,7 @@ import functools
 import inspect
 import json
 import logging
-from typing import Callable, Dict, Text
+from typing import Callable, Dict, Optional
 
 import async_lru
 import gamla
@@ -20,7 +20,7 @@ class VersionNotFound(Exception):
 
 
 @gamla.curry
-def _write_to_versions_file(identifier: Text, hash_to_load: Text, versions_file):
+def _write_to_versions_file(identifier: str, hash_to_load: str, versions_file):
     new_versions_dict = gamla.pipe(
         json.load(versions_file),
         gamla.add_key_value(
@@ -41,9 +41,9 @@ def _write_to_versions_file(identifier: Text, hash_to_load: Text, versions_file)
 
 @gamla.curry
 def _write_hash_to_versions_file(
-    versions_file_name: Text,
-    identifier: Text,
-    hash_to_load: Text,
+    versions_file_name: str,
+    identifier: str,
+    hash_to_load: str,
 ):
     return gamla.pipe(
         versions_file_name,
@@ -52,7 +52,7 @@ def _write_hash_to_versions_file(
     )
 
 
-def _time_since_last_updated(identifier: Text):
+def _time_since_last_updated(identifier: str) -> Optional[datetime.datetime]:
     return gamla.compose_left(
         gamla.get_in_or_none([identifier, _LAST_RUN_TIMESTAMP]),
         gamla.unless(
@@ -66,7 +66,7 @@ def _time_since_last_updated(identifier: Text):
 
 
 def _should_update(
-    identifier: Text,
+    identifier: str,
     update: bool,
     force_update: bool,
     ttl_hours: int,
@@ -97,9 +97,9 @@ _total_hours_since_update = gamla.ternary(
 def auto_updating_cache(
     factory: Callable,
     update: bool,
-    versions_file_path: Text,
-    environment: Text,
-    bucket_name: Text,
+    versions_file_path: str,
+    environment: str,
+    bucket_name: str,
     force_update: bool,
     frame_level: int,
     ttl_hours: int,
@@ -137,8 +137,8 @@ def auto_updating_cache(
 
 def persistent_cache(
     redis_client: redis.Redis,
-    name: Text,
-    environment: Text,
+    name: str,
+    environment: str,
     is_external: bool,
     num_misses_to_trigger_sync: int,
 ) -> Callable:

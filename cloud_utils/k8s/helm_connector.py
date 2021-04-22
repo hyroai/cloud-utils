@@ -2,7 +2,7 @@ import asyncio
 import logging
 import os
 import tempfile
-from typing import Any, Dict, Text
+from typing import Any, Dict
 
 import gamla
 import yaml
@@ -12,7 +12,7 @@ class _HelmException(Exception):
     pass
 
 
-async def _run_in_shell(args, path: Text) -> Text:
+async def _run_in_shell(args, path: str) -> str:
     logging.info(f"Running shell command: {args}.")
     process = await asyncio.subprocess.create_subprocess_shell(
         cmd=" ".join(args),
@@ -35,10 +35,10 @@ async def releases():
 
 
 async def install_release(
-    chart_name: Text,
-    release_name: Text,
-    chart_values: Dict[Text, Any],
-    chart_physical_dir: Text,
+    chart_name: str,
+    release_name: str,
+    chart_values: Dict[str, Any],
+    chart_physical_dir: str,
 ):
     handle, filename = tempfile.mkstemp()
     del handle
@@ -53,7 +53,7 @@ async def install_release(
         os.remove(filename)
 
 
-async def delete_release(release_name: Text):
+async def delete_release(release_name: str):
     try:
         await _run_in_shell(["helm", "uninstall", release_name], "./")
     except _HelmException:

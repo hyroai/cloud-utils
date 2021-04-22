@@ -2,7 +2,7 @@ import gzip
 import io
 import os
 import pathlib
-from typing import Any, Text
+from typing import Any
 
 import gamla
 from azure.storage import blob
@@ -15,11 +15,11 @@ def _blob_service():
     )
 
 
-def _to_bytes(text: Text):
+def _to_bytes(text: str):
     return bytes(text, "utf-8")
 
 
-def upload_blob(bucket_name: Text, blob_name: Text, obj: Any):
+def upload_blob(bucket_name: str, blob_name: str, obj: Any):
     return gamla.pipe(
         obj,
         gamla.to_json,
@@ -38,10 +38,10 @@ def upload_blob(bucket_name: Text, blob_name: Text, obj: Any):
 
 @gamla.curry
 def download_blob_as_string_with_encoding(
-    encoding: Text,
-    bucket_name: Text,
-    blob_name: Text,
-) -> Text:
+    encoding: str,
+    bucket_name: str,
+    blob_name: str,
+) -> str:
     return (
         _blob_service()
         .get_blob_to_text(bucket_name, blob_name, encoding=encoding)
@@ -53,14 +53,14 @@ download_blob_as_string = download_blob_as_string_with_encoding("utf-8")
 
 
 @gamla.curry
-def download_blob_as_stream(bucket_name: Text, blob_name: Text) -> io.BytesIO:
+def download_blob_as_stream(bucket_name: str, blob_name: str) -> io.BytesIO:
     stream = io.BytesIO()
     _blob_service().get_blob_to_stream(bucket_name, blob_name, stream)
     stream.seek(0)
     return stream
 
 
-def download_blob_to_file(bucket_name: Text, blob_name: Text, path: pathlib.Path):
+def download_blob_to_file(bucket_name: str, blob_name: str, path: pathlib.Path):
     return _blob_service().get_blob_to_path(
         bucket_name,
         blob_name,
