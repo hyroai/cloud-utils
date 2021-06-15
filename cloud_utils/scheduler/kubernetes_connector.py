@@ -72,10 +72,29 @@ def _wait_for_job_deletion(name, options):
         )
 
 
+def _wait_for_job_completion(
+    wait_minutes_for_completion: int,
+    name: str,
+    options: Dict,
+):
+    """Waits until job is completed
+    Raises ApiException exception when job with given name no longer exist"""
+    for i in range(wait_minutes_for_completion):
+        logging.debug("Waiting for job to complete...")
+        job = client.BatchV1Api().read_namespaced_job_status(
+            **gamla.add_key_value("name", name)(options)
+        )
+        if job.status.succeeded:
+            return
+        time.sleep(60)
+    raise Exception(f"Job wasn't completed within {wait_minutes_for_completion} min")
+
+
 @gamla.curry
 def create_job(
     pod_name: Text,
     dry_run: bool,
+    wait_minutes_for_completion: int,
     job_spec: client.V1JobSpec,
 ) -> Text:
     job = client.V1Job(
@@ -97,7 +116,12 @@ def create_job(
             **gamla.add_key_value("body", job)(options)
         )
     logging.info(f"Job created: {api_response}.")
-
+    if wait_minutes_for_completion:
+        _wait_for_job_completion(
+            wait_minutes_for_completion,
+            _job_name(pod_name),
+            options,
+        )
     return pod_name
 
 

@@ -18,4 +18,5 @@ def test_run_jobs():
         True,
         json.load((pathlib.Path(__file__).parent / "test_schedule.json").open()),
         "extra-arg",
+        0,
     )
