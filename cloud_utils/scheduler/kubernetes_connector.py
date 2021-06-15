@@ -85,7 +85,7 @@ def _wait_for_job_completion(
             **gamla.add_key_value("name", name)(options)
         )
         if job.status.succeeded:
-            break
+            return
         time.sleep(60)
     raise Exception(f"Job wasn't completed within {wait_minutes_for_completion} min")
 
