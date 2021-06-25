@@ -3,7 +3,8 @@ import functools
 import inspect
 import json
 import logging
-from typing import Callable, Dict, Text
+import os
+from typing import Callable, Dict, Text, Tuple
 
 import async_lru
 import gamla
@@ -20,9 +21,9 @@ class VersionNotFound(Exception):
 
 
 @gamla.curry
-def _write_to_versions_file(identifier: Text, hash_to_load: Text, versions_file):
+def _write_to_cache_file(identifier: str, hash_to_load: str, cache_file):
     new_versions_dict = gamla.pipe(
-        json.load(versions_file),
+        json.load(cache_file),
         gamla.add_key_value(
             identifier,
             {
@@ -34,21 +35,21 @@ def _write_to_versions_file(identifier: Text, hash_to_load: Text, versions_file)
         sorted,
         dict,
     )
-    versions_file.seek(0)
-    json.dump(new_versions_dict, versions_file, indent=2)
-    versions_file.truncate()
+    cache_file.seek(0)
+    json.dump(new_versions_dict, cache_file, indent=2)
+    cache_file.truncate()
 
 
 @gamla.curry
-def _write_hash_to_versions_file(
-    versions_file_name: Text,
+def _write_hash_to_cache_file(
+    cache_file_name: Text,
     identifier: Text,
     hash_to_load: Text,
 ):
     return gamla.pipe(
-        versions_file_name,
+        cache_file_name,
         file_store.open_file("r+"),
-        _write_to_versions_file(identifier, hash_to_load),
+        _write_to_cache_file(identifier, hash_to_load),
     )
 
 
@@ -94,22 +95,45 @@ _total_hours_since_update = gamla.ternary(
 )
 
 
+def _get_cache_file_and_identifier(
+    cache_file_name: str,
+    frame_level: int,
+) -> Tuple[str, str]:
+    frame = inspect.currentframe()
+    for i in range(frame_level + 1):
+        if frame:
+            frame = frame.f_back
+    if not frame:
+        raise Exception("Could not trace back callee path")
+
+    cache_file = os.path.join(
+        os.path.dirname(frame.f_locals["__file__"]),
+        cache_file_name,
+    )
+    identifier = f"{os.path.basename(frame.f_locals['__file__'])}_{frame.f_lineno}"
+
+    if not os.path.isfile(cache_file):
+        with open(cache_file, "w") as f:
+            f.write("{}")
+    return cache_file, identifier
+
+
 def auto_updating_cache(
     factory: Callable,
     update: bool,
-    versions_file_path: Text,
-    environment: Text,
-    bucket_name: Text,
+    cache_file_name: str,
+    environment: str,
+    bucket_name: str,
     force_update: bool,
     frame_level: int,
     ttl_hours: int,
 ) -> Callable:
-
-    # Deployment name is the concatenation of caller's module name and factory's function name.
-    identifier = f"{inspect.stack()[frame_level+1].frame.f_globals['__name__']}.{factory.__name__}"
-
+    cache_file, identifier = _get_cache_file_and_identifier(
+        cache_file_name,
+        frame_level + 1,
+    )
     return gamla.compose_left(
-        gamla.just(versions_file_path),
+        gamla.just(cache_file),
         file_store.open_file("r"),
         json.load,
         gamla.side_effect(
@@ -126,7 +150,7 @@ def auto_updating_cache(
                 gamla.ignore_input(factory),
                 file_store.save_to_bucket_return_hash(environment, bucket_name),
                 gamla.side_effect(
-                    _write_hash_to_versions_file(versions_file_path, identifier),
+                    _write_hash_to_cache_file(cache_file, identifier),
                 ),
                 gamla.log_text(f"Finished updating cache for [{identifier}]."),
             ),
