@@ -114,7 +114,7 @@ def _get_cache_file_and_identifier(
 
     if not os.path.isfile(cache_file):
         with open(cache_file, "w") as f:
-            f.write("{}")
+            f.write("{}\n")
     return cache_file, identifier
 
 
