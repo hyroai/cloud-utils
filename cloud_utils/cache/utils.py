@@ -107,10 +107,10 @@ def _get_cache_file_and_identifier(
         raise Exception("Could not trace back callee path")
 
     cache_file = os.path.join(
-        os.path.dirname(frame.f_locals["__file__"]),
+        os.path.dirname(frame.f_code.co_filename),
         cache_file_name,
     )
-    identifier = f"{os.path.basename(frame.f_locals['__file__'])}_{frame.f_lineno}"
+    identifier = f"{os.path.basename(frame.f_code.co_filename)}_{frame.f_lineno}"
 
     if not os.path.isfile(cache_file):
         with open(cache_file, "w") as f:
