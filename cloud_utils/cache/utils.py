@@ -54,9 +54,9 @@ def _write_to_cache_file(
 def _write_hash_to_cache_file(
     cache_file_name: str,
     identifier: str,
-    hash_to_load: str,
     filename: str,
     lineno: int,
+    hash_to_load: str,
 ):
     return gamla.pipe(
         cache_file_name,
@@ -165,7 +165,7 @@ def auto_updating_cache(
                     _write_hash_to_cache_file(
                         cache_file,
                         identifier,
-                        frame.f_locals["__file__"],
+                        os.path.basename(frame.f_locals["__file__"]),
                         frame.f_lineno,
                     ),
                 ),
