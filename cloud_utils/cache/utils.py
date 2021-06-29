@@ -1,12 +1,10 @@
 import datetime
 import functools
-import hashlib
 import inspect
 import json
 import logging
 import os
-import types
-from typing import Callable, Dict, Text, Tuple
+from typing import Callable, Dict, Text
 
 import async_lru
 import gamla
@@ -14,7 +12,7 @@ import redis
 
 from cloud_utils.cache import file_store, redis_utils
 
-_HASH_VERSION_KEY = "hash_version"
+_RESULT_HASH_KEY = "result_hash"
 _LAST_RUN_TIMESTAMP = "last_run_timestamp"
 
 
@@ -26,8 +24,7 @@ class VersionNotFound(Exception):
 def _write_to_cache_file(
     identifier: str,
     hash_to_load: str,
-    filename: str,
-    lineno: int,
+    extra_fields: Dict,
     cache_file,
 ):
     new_versions_dict = gamla.pipe(
@@ -35,10 +32,9 @@ def _write_to_cache_file(
         gamla.add_key_value(
             identifier,
             {
-                _HASH_VERSION_KEY: hash_to_load,
+                _RESULT_HASH_KEY: hash_to_load,
                 _LAST_RUN_TIMESTAMP: datetime.datetime.now().isoformat(),
-                "filename": filename,
-                "lineno": lineno,
+                **extra_fields,
             },
         ),
         dict.items,
@@ -54,14 +50,13 @@ def _write_to_cache_file(
 def _write_hash_to_cache_file(
     cache_file_name: str,
     identifier: str,
-    filename: str,
-    lineno: int,
+    extra_fields,
     hash_to_load: str,
 ):
     return gamla.pipe(
         cache_file_name,
         file_store.open_file("r+"),
-        _write_to_cache_file(identifier, hash_to_load, filename, lineno),
+        _write_to_cache_file(identifier, hash_to_load, extra_fields),
     )
 
 
@@ -107,26 +102,21 @@ _total_hours_since_update = gamla.ternary(
 )
 
 
-def _get_cache_file_and_frame(
+def _get_cache_filename(
     cache_file_name: str,
-    frame_level: int,
-) -> Tuple[str, types.FrameType]:
-    frame = inspect.currentframe()
-    for i in range(frame_level + 1):
-        if frame:
-            frame = frame.f_back
-    if not frame:
-        raise Exception("Could not trace back callee path")
+    factory: Callable,
+) -> str:
 
     cache_file = os.path.join(
-        os.path.dirname(frame.f_locals["__file__"]),
+        os.path.dirname(factory.__code__.co_filename),
         cache_file_name,
     )
 
     if not os.path.isfile(cache_file):
         with open(cache_file, "w") as f:
             f.write("{}\n")
-    return cache_file, frame
+
+    return cache_file
 
 
 def auto_updating_cache(
@@ -136,14 +126,15 @@ def auto_updating_cache(
     environment: str,
     bucket_name: str,
     force_update: bool,
-    frame_level: int,
     ttl_hours: int,
 ) -> Callable:
-    cache_file, frame = _get_cache_file_and_frame(
-        cache_file_name,
-        frame_level + 1,
-    )
-    identifier = hashlib.sha1(factory.__name__.encode("utf-8")).hexdigest()
+    cache_file = _get_cache_filename(cache_file_name, factory)
+    extra_fields = {
+        "filename": os.path.basename(factory.__code__.co_filename),
+        "lineno": factory.__code__.co_firstlineno,
+        "name": factory.__code__.co_name,
+    }
+    identifier = gamla.function_to_uid(factory)
     return gamla.compose_left(
         gamla.just(cache_file),
         file_store.open_file("r"),
@@ -165,13 +156,12 @@ def auto_updating_cache(
                     _write_hash_to_cache_file(
                         cache_file,
                         identifier,
-                        os.path.basename(frame.f_locals["__file__"]),
-                        frame.f_lineno,
+                        extra_fields,
                     ),
                 ),
                 gamla.log_text(f"Finished updating cache for [{identifier}]."),
             ),
-            gamla.get_in([identifier, _HASH_VERSION_KEY]),
+            gamla.get_in([identifier, _RESULT_HASH_KEY]),
         ),
     )
 
