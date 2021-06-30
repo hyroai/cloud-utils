@@ -43,6 +43,7 @@ def _write_to_cache_file(
     )
     cache_file.seek(0)
     json.dump(new_versions_dict, cache_file, indent=2)
+    cache_file.write("\n")
     cache_file.truncate()
 
 
