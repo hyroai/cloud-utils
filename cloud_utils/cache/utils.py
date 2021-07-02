@@ -3,6 +3,7 @@ import functools
 import inspect
 import json
 import logging
+import os
 from typing import Callable, Dict, Text
 
 import async_lru
@@ -11,7 +12,7 @@ import redis
 
 from cloud_utils.cache import file_store, redis_utils
 
-_HASH_VERSION_KEY = "hash_version"
+_RESULT_HASH_KEY = "result_hash"
 _LAST_RUN_TIMESTAMP = "last_run_timestamp"
 
 
@@ -20,36 +21,32 @@ class VersionNotFound(Exception):
 
 
 @gamla.curry
-def _write_to_versions_file(identifier: Text, hash_to_load: Text, versions_file):
+def _write_to_cache_file(
+    cache_file_name: str,
+    identifier: str,
+    extra_fields: Dict,
+    hash_to_load: str,
+):
+    cache_file = file_store.open_file("r+")(cache_file_name)
     new_versions_dict = gamla.pipe(
-        json.load(versions_file),
+        cache_file,
+        json.load,
         gamla.add_key_value(
             identifier,
             {
-                _HASH_VERSION_KEY: hash_to_load,
+                _RESULT_HASH_KEY: hash_to_load,
                 _LAST_RUN_TIMESTAMP: datetime.datetime.now().isoformat(),
+                **extra_fields,
             },
         ),
         dict.items,
         sorted,
         dict,
     )
-    versions_file.seek(0)
-    json.dump(new_versions_dict, versions_file, indent=2)
-    versions_file.truncate()
-
-
-@gamla.curry
-def _write_hash_to_versions_file(
-    versions_file_name: Text,
-    identifier: Text,
-    hash_to_load: Text,
-):
-    return gamla.pipe(
-        versions_file_name,
-        file_store.open_file("r+"),
-        _write_to_versions_file(identifier, hash_to_load),
-    )
+    cache_file.seek(0)
+    json.dump(new_versions_dict, cache_file, indent=2)
+    cache_file.write("\n")
+    cache_file.truncate()
 
 
 def _time_since_last_updated(identifier: Text):
@@ -94,22 +91,41 @@ _total_hours_since_update = gamla.ternary(
 )
 
 
+def _get_cache_filename(
+    cache_file_name: str,
+    factory: Callable,
+) -> str:
+
+    cache_file = os.path.join(
+        os.path.dirname(factory.__code__.co_filename),
+        cache_file_name,
+    )
+
+    if not os.path.isfile(cache_file):
+        with open(cache_file, "w") as f:
+            f.write("{}\n")
+
+    return cache_file
+
+
 def auto_updating_cache(
     factory: Callable,
     update: bool,
-    versions_file_path: Text,
-    environment: Text,
-    bucket_name: Text,
+    cache_file_name: str,
+    environment: str,
+    bucket_name: str,
     force_update: bool,
-    frame_level: int,
     ttl_hours: int,
 ) -> Callable:
-
-    # Deployment name is the concatenation of caller's module name and factory's function name.
-    identifier = f"{inspect.stack()[frame_level+1].frame.f_globals['__name__']}.{factory.__name__}"
-
+    cache_file = _get_cache_filename(cache_file_name, factory)
+    extra_fields = {
+        "filename": os.path.basename(factory.__code__.co_filename),
+        "lineno": factory.__code__.co_firstlineno,
+        "name": factory.__code__.co_name,
+    }
+    identifier = gamla.function_to_uid(factory)
     return gamla.compose_left(
-        gamla.just(versions_file_path),
+        gamla.just(cache_file),
         file_store.open_file("r"),
         json.load,
         gamla.side_effect(
@@ -126,11 +142,15 @@ def auto_updating_cache(
                 gamla.ignore_input(factory),
                 file_store.save_to_bucket_return_hash(environment, bucket_name),
                 gamla.side_effect(
-                    _write_hash_to_versions_file(versions_file_path, identifier),
+                    _write_to_cache_file(
+                        cache_file,
+                        identifier,
+                        extra_fields,
+                    ),
                 ),
                 gamla.log_text(f"Finished updating cache for [{identifier}]."),
             ),
-            gamla.get_in([identifier, _HASH_VERSION_KEY]),
+            gamla.get_in([identifier, _RESULT_HASH_KEY]),
         ),
     )
 
