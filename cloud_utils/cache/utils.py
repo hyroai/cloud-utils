@@ -22,13 +22,15 @@ class VersionNotFound(Exception):
 
 @gamla.curry
 def _write_to_cache_file(
+    cache_file_name: str,
     identifier: str,
-    hash_to_load: str,
     extra_fields: Dict,
-    cache_file,
+    hash_to_load: str,
 ):
+    cache_file = file_store.open_file("r+")(cache_file_name)
     new_versions_dict = gamla.pipe(
-        json.load(cache_file),
+        cache_file,
+        json.load,
         gamla.add_key_value(
             identifier,
             {
@@ -45,20 +47,6 @@ def _write_to_cache_file(
     json.dump(new_versions_dict, cache_file, indent=2)
     cache_file.write("\n")
     cache_file.truncate()
-
-
-@gamla.curry
-def _write_hash_to_cache_file(
-    cache_file_name: str,
-    identifier: str,
-    extra_fields,
-    hash_to_load: str,
-):
-    return gamla.pipe(
-        cache_file_name,
-        file_store.open_file("r+"),
-        _write_to_cache_file(identifier, hash_to_load, extra_fields),
-    )
 
 
 def _time_since_last_updated(identifier: Text):
@@ -154,7 +142,7 @@ def auto_updating_cache(
                 gamla.ignore_input(factory),
                 file_store.save_to_bucket_return_hash(environment, bucket_name),
                 gamla.side_effect(
-                    _write_hash_to_cache_file(
+                    _write_to_cache_file(
                         cache_file,
                         identifier,
                         extra_fields,
