@@ -71,7 +71,7 @@ def create_job(
     wait_minutes_for_completion: int,
     job_spec: client.V1JobSpec,
 ) -> Text:
-    job_name = f"{pod_name}-{str(uuid.uuid4())[:6]}"
+    job_name = f"{pod_name}-job-{str(uuid.uuid4())[:6]}"
     job = client.V1Job(
         api_version="batch/v1",
         kind="Job",
