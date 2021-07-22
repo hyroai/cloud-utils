@@ -121,7 +121,6 @@ def auto_updating_cache(
     extra_fields = {
         "filename": os.path.basename(factory.__code__.co_filename),
         "lineno": factory.__code__.co_firstlineno,
-        "name": factory.__code__.co_name,
     }
     identifier = gamla.function_to_uid(factory)
     return gamla.compose_left(
