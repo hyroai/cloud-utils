@@ -83,9 +83,19 @@ def load_file_from_bucket(bucket_name: Text, file_name: Text):
     )
 
 
+def file_hash_exists_in_bucket(bucket_name: str, file_name: str) -> bool:
+    return storage.blob_exists(bucket_name, utils.hash_to_filename(file_name))
+
+
 def save_to_bucket_return_hash(environment: Text, bucket_name: Text):
     return gamla.compose_left(
         gamla.pair_with(gamla.compute_stable_json_hash),
+        save_to_bucket(environment, bucket_name),
+    )
+
+
+def save_to_bucket(environment: Text, bucket_name: Text):
+    return gamla.compose_left(
         gamla.side_effect(gamla.star(_save_to_blob(bucket_name))),
         gamla.side_effect(gamla.star(save_local(environment))),
         gamla.head,

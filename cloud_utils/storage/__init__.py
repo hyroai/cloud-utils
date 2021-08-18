@@ -16,5 +16,6 @@ try:
     download_blob_as_string = _storage_service.download_blob_as_string
     download_blob_to_file = _storage_service.download_blob_to_file
     upload_blob = _storage_service.upload_blob
+    blob_exists = _storage_service.blob_exists
 except Exception as e:
     logging.error(f"Could not load storage utils: {e}.")
