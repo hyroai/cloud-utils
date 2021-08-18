@@ -83,11 +83,8 @@ def load_file_from_bucket(bucket_name: Text, file_name: Text):
     )
 
 
-def hash_exist_on_bucket(bucket_name: str, file_name: str) -> bool:
-    return gamla.pipe(
-        utils.hash_to_filename(file_name),
-        storage.blob_exists(bucket_name),
-    )
+def file_hash_exists_in_bucket(bucket_name: str, file_name: str) -> bool:
+    return storage.blob_exists(bucket_name, utils.hash_to_filename(file_name))
 
 
 def save_to_bucket_return_hash(environment: Text, bucket_name: Text):
