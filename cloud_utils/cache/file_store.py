@@ -70,7 +70,11 @@ def load_by_hash(environment: Text, bucket_name: Text, object_hash: Text) -> Dic
         return gamla.pipe(
             object_hash,
             gamla.log_text(f"Loading {object_hash} from bucket..."),
-            _load_item(bucket_name),
+            gamla.translate_exception(
+                _load_item(bucket_name),
+                Exception,
+                FileNotFoundError,
+            ),
             gamla.side_effect(save_local(environment, object_hash)),
         )
 
