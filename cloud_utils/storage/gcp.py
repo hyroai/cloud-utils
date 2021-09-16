@@ -23,5 +23,5 @@ def download_blob_to_file(bucket_name: Text, blob_name: Text, path: pathlib.Path
 
 
 @gamla.curry
-def blob_exists(bucket_name: str, blob_name: str) -> bool:
+async def blob_exists(bucket_name: str, blob_name: str) -> bool:
     return _blob(bucket_name, blob_name).exists()
