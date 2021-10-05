@@ -3,7 +3,7 @@ import logging
 import os
 import time
 import uuid
-from typing import Any, Dict, List, Optional, Text
+from typing import Any, Callable, Dict, List, Optional, Text, Tuple
 
 import gamla
 from kubernetes import client
@@ -189,11 +189,36 @@ def _make_job_spec(
     )
 
 
+_DEFAULT_JOB_TOLERATIONS = (
+    {
+        "key": "kubernetes.azure.com/scalesetpriority",
+        "value": "spot",
+        "effect": "NoSchedule",
+    },
+)
+
+
+_make_tolerations: Callable[
+    [Tuple[Dict[str, str], ...]],
+    Tuple[client.V1Toleration, ...],
+] = gamla.compose_left(
+    gamla.map(
+        lambda toleration: client.V1Toleration(
+            key=toleration.get("key"),
+            value=toleration.get("value"),
+            effect=toleration.get("effect"),
+        ),
+    ),
+    tuple,
+)
+
+
 def _make_base_pod_spec(
     pod_name: Text,
     image: Text,
     tag: Text,
-    node_selector: Optional[Text],
+    node_selector: Dict[str, str],
+    tolerations: Tuple[Dict, ...],
 ) -> Dict[Text, Any]:
     return {
         "containers": [{"image": f"{image}:{tag}", "name": f"{pod_name}-container"}],
@@ -201,7 +226,8 @@ def _make_base_pod_spec(
             {"name": f"{_repo_name_from_image(image)}-gitlab-creds"},
         ],
         "restartPolicy": "Never",
-        "nodeSelector": node_selector or {"role": "jobs"},
+        "nodeSelector": node_selector,
+        "tolerations": _make_tolerations(tolerations),
     }
 
 
@@ -234,7 +260,7 @@ def _repo_name_from_image(image: Text):
 
 
 def make_job_spec(
-    run: Dict[Text, Text],
+    run: Dict[str, Any],
     tag: Text,
     extra_arg: Optional[Text],
 ) -> client.V1JobSpec:
@@ -243,7 +269,8 @@ def make_job_spec(
             run["pod_name"],
             run["image"],
             tag,
-            run.get("node_selector"),
+            run.get("node_selector", {"role": "jobs"}),
+            run.get("tolerations", _DEFAULT_JOB_TOLERATIONS),
         ),
         _make_pod_manifest(
             run.get("env_variables"),
