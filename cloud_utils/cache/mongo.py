@@ -7,7 +7,7 @@ ASCENDING = pymongo.ASCENDING
 DESCENDING = pymongo.DESCENDING
 
 
-def client(mongodb_uri: Text, **kwargs) -> pymongo.MongoClient:
+def client(mongodb_uri: str, **kwargs) -> pymongo.MongoClient:
     return pymongo.MongoClient(mongodb_uri, **kwargs)
 
 
@@ -33,7 +33,7 @@ find_all = find({})
 @gamla.curry
 def sort(
     collection: pymongo.collection.Collection,
-    key: Text,
+    key: str,
     direction: int,
 ):
     return collection.sort(key, direction)

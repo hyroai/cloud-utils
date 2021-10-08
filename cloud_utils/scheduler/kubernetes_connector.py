@@ -66,7 +66,7 @@ def _wait_for_job_completion(
 
 @gamla.curry
 def create_job(
-    pod_name: Text,
+    pod_name: str,
     dry_run: bool,
     wait_minutes_for_completion: int,
     job_spec: client.V1JobSpec,
@@ -95,8 +95,8 @@ def create_job(
 
 @gamla.curry
 def create_cron_job(
-    pod_name: Text,
-    schedule: Text,
+    pod_name: str,
+    schedule: str,
     dry_run: bool,
     job_spec: client.V1JobSpec,
 ) -> Text:
@@ -134,7 +134,7 @@ def _make_pod_manifest(
     secrets: List[Dict[Text, Text]],
     command: List[Text],
     args: List[Text],
-    extra_arg: Text,
+    extra_arg: str,
     base_pod_spec: Dict[Text, Any],
 ) -> client.V1PodSpec:
     if secrets:
@@ -214,9 +214,9 @@ _make_tolerations: Callable[
 
 
 def _make_base_pod_spec(
-    pod_name: Text,
-    image: Text,
-    tag: Text,
+    pod_name: str,
+    image: str,
+    tag: str,
     node_selector: Dict[str, str],
     tolerations: Tuple[Dict, ...],
 ) -> Dict[Text, Any]:
@@ -255,13 +255,13 @@ def _add_volume_from_secret(secret: Dict[Text, Text]):
     )
 
 
-def _repo_name_from_image(image: Text):
+def _repo_name_from_image(image: str):
     return image.split(":")[0].split("/")[-1]
 
 
 def make_job_spec(
     run: Dict[str, Any],
-    tag: Text,
+    tag: str,
     extra_arg: Optional[Text],
 ) -> client.V1JobSpec:
     return gamla.pipe(

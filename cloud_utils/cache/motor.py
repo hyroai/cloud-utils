@@ -1,14 +1,12 @@
-from typing import Text
-
 import gamla
 import pymongo
 from motor import motor_asyncio
 
 
 def database_collection(
-    mongodb_uri: Text,
-    collection_name: Text,
-    database: Text,
+    mongodb_uri: str,
+    collection_name: str,
+    database: str,
 ) -> motor_asyncio.AsyncIOMotorCollection:
     return gamla.pipe(
         mongodb_uri,

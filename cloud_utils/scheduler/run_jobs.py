@@ -1,7 +1,7 @@
 import argparse
 import json
 import sys
-from typing import Dict, Iterable, Optional, Sequence, Text
+from typing import Dict, Iterable, Optional, Sequence
 
 import gamla
 
@@ -9,10 +9,10 @@ from cloud_utils.scheduler import kubernetes_connector
 
 
 def deploy_jobs(
-    tag: Text,
+    tag: str,
     dry_run: bool,
     job_configs: Iterable[Dict],
-    extra_arg: Text,
+    extra_arg: str,
     wait_minutes_for_completion: int,
 ):
     job_configs = tuple(job_configs)  # Defend from generators.

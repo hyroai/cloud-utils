@@ -4,7 +4,7 @@ import pathlib
 import pickle
 import timeit
 import zipfile
-from typing import Any, Callable, Dict, Text, Tuple
+from typing import Any, Callable, Dict, Tuple
 
 import gamla
 import xmltodict
@@ -15,17 +15,17 @@ from cloud_utils.storage import utils
 _LOCAL_CACHE_PATH: pathlib.Path = pathlib.Path.home().joinpath(".nlu_cache")
 
 
-def open_file(mode: Text):
+def open_file(mode: str):
     return gamla.compose_left(pathlib.Path, lambda p: p.open(mode=mode))
 
 
 @gamla.curry
-def _save_to_blob(bucket_name: Text, item_name: Text, obj: Any):
+def _save_to_blob(bucket_name: str, item_name: str, obj: Any):
     storage.upload_blob(bucket_name, utils.hash_to_filename(item_name), obj)
 
 
 @gamla.curry
-def _load_item(bucket_name: Text, hash_to_load: Text):
+def _load_item(bucket_name: str, hash_to_load: str):
     return gamla.pipe(
         hash_to_load,
         utils.hash_to_filename,
@@ -34,7 +34,7 @@ def _load_item(bucket_name: Text, hash_to_load: Text):
     )
 
 
-def local_path_for_hash(object_hash: Text) -> pathlib.Path:
+def local_path_for_hash(object_hash: str) -> pathlib.Path:
     local_path = gamla.pipe(
         object_hash,
         utils.hash_to_filename,
@@ -45,7 +45,7 @@ def local_path_for_hash(object_hash: Text) -> pathlib.Path:
 
 
 @gamla.curry
-def save_local(environment: Text, object_hash: Text, obj: Any) -> Any:
+def save_local(environment: str, object_hash: str, obj: Any) -> Any:
     if environment != "local":
         return
     local_path = local_path_for_hash(object_hash)
@@ -57,7 +57,7 @@ def save_local(environment: Text, object_hash: Text, obj: Any) -> Any:
 
 
 @gamla.curry
-def load_by_hash(environment: Text, bucket_name: Text, object_hash: Text) -> Dict:
+def load_by_hash(environment: str, bucket_name: str, object_hash: str) -> Dict:
     try:
         return gamla.pipe(
             object_hash,
@@ -79,7 +79,7 @@ def load_by_hash(environment: Text, bucket_name: Text, object_hash: Text) -> Dic
         )
 
 
-def load_file_from_bucket(bucket_name: Text, file_name: Text):
+def load_file_from_bucket(bucket_name: str, file_name: str):
     return gamla.pipe(
         file_name,
         gamla.log_text("Loading {} from bucket..."),
@@ -91,14 +91,14 @@ async def file_hash_exists_in_bucket(bucket_name: str, file_name: str) -> bool:
     return await storage.blob_exists(bucket_name, utils.hash_to_filename(file_name))
 
 
-def save_to_bucket_return_hash(environment: Text, bucket_name: Text):
+def save_to_bucket_return_hash(environment: str, bucket_name: str):
     return gamla.compose_left(
         gamla.pair_with(gamla.compute_stable_json_hash),
         save_to_bucket(environment, bucket_name),
     )
 
 
-def save_to_bucket(environment: Text, bucket_name: Text):
+def save_to_bucket(environment: str, bucket_name: str):
     return gamla.compose_left(
         gamla.side_effect(gamla.star(_save_to_blob(bucket_name))),
         gamla.side_effect(gamla.star(save_local(environment))),
@@ -113,19 +113,19 @@ _local_cache_filename = gamla.wrap_str("{}.pickle")
 _make_path = gamla.compose(_LOCAL_CACHE_PATH.joinpath, _local_cache_filename)
 
 
-def _load_cache_from_local(cache_name: Text) -> Dict[Tuple, Any]:
+def _load_cache_from_local(cache_name: str) -> Dict[Tuple, Any]:
     with _make_path(cache_name).open("rb") as local_cache_file:
         return pickle.load(local_cache_file)
 
 
-def _save_cache_locally(cache_name: Text, cache: Dict[Tuple, Any]):
+def _save_cache_locally(cache_name: str, cache: Dict[Tuple, Any]):
     _LOCAL_CACHE_PATH.mkdir(parents=True, exist_ok=True)
     with _make_path(cache_name).open("wb") as local_cache_file:
         pickle.dump(cache, local_cache_file)
     logging.info(f"Saved {len(cache)} cache items locally for {cache_name}.")
 
 
-def load_xml_to_dict(xml_file: Text) -> Dict:
+def load_xml_to_dict(xml_file: str) -> Dict:
     local_path = _LOCAL_CACHE_PATH.joinpath(xml_file)
     if not local_path.exists():
         storage.download_blob_to_file("hyro-bot-data", xml_file, local_path)
@@ -135,7 +135,7 @@ def load_xml_to_dict(xml_file: Text) -> Dict:
 
 
 def make_file_store(
-    name: Text,
+    name: str,
     num_misses_to_trigger_sync: int,
 ) -> Tuple[Callable, Callable]:
     change_count = 0

@@ -6,7 +6,7 @@ import gamla
 import redis
 
 
-def client(host: Text, password: Text) -> redis.Redis:
+def client(host: str, password: str) -> redis.Redis:
     return redis.Redis(
         host=host,
         port=6379,
@@ -16,15 +16,15 @@ def client(host: Text, password: Text) -> redis.Redis:
     )
 
 
-def _cache_key_name(environment: Text, cache_name: Text, key: Tuple) -> Text:
+def _cache_key_name(environment: str, cache_name: str, key: Tuple) -> Text:
     return f"{environment}:{cache_name}:{json.dumps(key)}"
 
 
 @gamla.curry
 def make_redis_store(
     redis_client: redis.Redis,
-    environment: Text,
-    name: Text,
+    environment: str,
+    name: str,
 ) -> Tuple[Callable, Callable]:
     logging.info(f"Initializing redis cache for {name}.")
 

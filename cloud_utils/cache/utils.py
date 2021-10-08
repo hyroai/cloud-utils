@@ -4,7 +4,7 @@ import inspect
 import json
 import logging
 import os
-from typing import Callable, Dict, Text
+from typing import Callable, Dict
 
 import async_lru
 import gamla
@@ -49,7 +49,7 @@ def _write_to_cache_file(
     cache_file.truncate()
 
 
-def _time_since_last_updated(identifier: Text):
+def _time_since_last_updated(identifier: str):
     return gamla.compose_left(
         gamla.get_in_or_none([identifier, _LAST_RUN_TIMESTAMP]),
         gamla.unless(
@@ -63,7 +63,7 @@ def _time_since_last_updated(identifier: Text):
 
 
 def _should_update(
-    identifier: Text,
+    identifier: str,
     update: bool,
     force_update: bool,
     ttl_hours: int,
@@ -156,8 +156,8 @@ def auto_updating_cache(
 
 def persistent_cache(
     redis_client: redis.Redis,
-    name: Text,
-    environment: Text,
+    name: str,
+    environment: str,
     is_external: bool,
     num_misses_to_trigger_sync: int,
 ) -> Callable:
