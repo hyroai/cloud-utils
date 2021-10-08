@@ -45,9 +45,7 @@ def local_path_for_hash(object_hash: str) -> pathlib.Path:
 
 
 @gamla.curry
-def save_local(environment: str, object_hash: str, obj: Any) -> Any:
-    if environment != "local":
-        return
+def _save_local(object_hash: str, obj: Any) -> Any:
     local_path = local_path_for_hash(object_hash)
     if local_path.exists():
         return
@@ -57,7 +55,7 @@ def save_local(environment: str, object_hash: str, obj: Any) -> Any:
 
 
 @gamla.curry
-def load_by_hash(environment: str, bucket_name: str, object_hash: str) -> Dict:
+def load_by_hash(should_save_local: bool, bucket_name: str, object_hash: str) -> Dict:
     try:
         return gamla.pipe(
             object_hash,
@@ -75,7 +73,9 @@ def load_by_hash(environment: str, bucket_name: str, object_hash: str) -> Dict:
                 Exception,
                 FileNotFoundError,
             ),
-            gamla.side_effect(save_local(environment, object_hash)),
+            gamla.side_effect(_save_local(object_hash))
+            if should_save_local
+            else gamla.identity,
         )
 
 
@@ -91,17 +91,17 @@ async def file_hash_exists_in_bucket(bucket_name: str, file_name: str) -> bool:
     return await storage.blob_exists(bucket_name, utils.hash_to_filename(file_name))
 
 
-def save_to_bucket_return_hash(environment: str, bucket_name: str):
+def save_to_bucket_return_hash(save_local: bool, bucket_name: str):
     return gamla.compose_left(
         gamla.pair_with(gamla.compute_stable_json_hash),
-        save_to_bucket(environment, bucket_name),
+        save_to_bucket(save_local, bucket_name),
     )
 
 
-def save_to_bucket(environment: str, bucket_name: str):
+def save_to_bucket(save_local: bool, bucket_name: str):
     return gamla.compose_left(
         gamla.side_effect(gamla.star(_save_to_blob(bucket_name))),
-        gamla.side_effect(gamla.star(save_local(environment))),
+        gamla.side_effect(gamla.star(_save_local)) if save_local else gamla.identity,
         gamla.head,
         gamla.log_text("Saved hash {}"),
     )

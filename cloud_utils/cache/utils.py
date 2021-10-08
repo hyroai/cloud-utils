@@ -64,20 +64,22 @@ def _time_since_last_updated(identifier: str):
 
 def _should_update(
     identifier: str,
-    update: bool,
+    allow_update: bool,
     force_update: bool,
     ttl_hours: int,
 ) -> Callable[[Dict], bool]:
     return gamla.anyjuxt(
         gamla.just(force_update),
-        gamla.complement(gamla.inside(identifier)),
         gamla.alljuxt(
-            gamla.just(update),
-            gamla.compose_left(
-                _time_since_last_updated(identifier),
-                gamla.anyjuxt(
-                    gamla.equals(None),
-                    gamla.greater_than(datetime.timedelta(hours=ttl_hours)),
+            gamla.just(allow_update),
+            gamla.anyjuxt(
+                gamla.complement(gamla.inside(identifier)),
+                gamla.compose_left(
+                    _time_since_last_updated(identifier),
+                    gamla.anyjuxt(
+                        gamla.equals(None),
+                        gamla.greater_than(datetime.timedelta(hours=ttl_hours)),
+                    ),
                 ),
             ),
         ),
@@ -110,9 +112,9 @@ def _get_cache_filename(
 
 def auto_updating_cache(
     factory: Callable,
-    update: bool,
+    allow_update: bool,
     cache_file_name: str,
-    environment: str,
+    save_local: bool,
     bucket_name: str,
     force_update: bool,
     ttl_hours: int,
@@ -136,10 +138,10 @@ def auto_updating_cache(
             ),
         ),
         gamla.ternary(
-            _should_update(identifier, update, force_update, ttl_hours),
+            _should_update(identifier, allow_update, force_update, ttl_hours),
             gamla.compose_left(
                 gamla.ignore_input(factory),
-                file_store.save_to_bucket_return_hash(environment, bucket_name),
+                file_store.save_to_bucket_return_hash(save_local, bucket_name),
                 gamla.side_effect(
                     _write_to_cache_file(
                         cache_file,
