@@ -18,7 +18,7 @@ def _get_connection_config():
     return gamla.pipe(
         os.getenv("AZURE_STORAGE_CONNECTION_STRING"),
         gamla.split_text(";"),
-        gamla.map(lambda text: str.split("=", 1)),
+        gamla.map(lambda text: text.split("=", 1)),
         dict,
     )
 
