@@ -68,11 +68,7 @@ def load_by_hash(should_save_local: bool, bucket_name: str, object_hash: str) ->
         return gamla.pipe(
             object_hash,
             gamla.log_text(f"Loading {object_hash} from bucket..."),
-            gamla.translate_exception(
-                _load_item(bucket_name),
-                Exception,
-                FileNotFoundError,
-            ),
+            _load_item(bucket_name),
             gamla.side_effect(_save_local(object_hash))
             if should_save_local
             else gamla.identity,
