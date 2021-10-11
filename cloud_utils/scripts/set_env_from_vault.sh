@@ -8,8 +8,12 @@ function getToken(){
 function exitIfEmpty(){
   if [ -z "$1" ]
   then
-    echo "$2" is empty. Aborting. "$1"
+    echo "$2" is empty. Aborting.
     exit 1
+  elif [ "$1" == null ]
+    then
+      echo "$2" is null. Aborting.
+      exit 1
   fi
 }
 
@@ -34,6 +38,7 @@ do
     i=10
   fi
 done
+exitIfEmpty "$jwt" jwt
 
 cat <<EOF > auth_payload_complete.json
 {
@@ -45,18 +50,17 @@ cat <<EOF > auth_payload_complete.json
     "vmss_name": "$vmss_name"
 }
 EOF
+echo Auth aginst valut with:
+cat auth_payload_complete.json
 
 export VAULT_SKIP_VERIFY=true
-valut_login=$(curl --request POST --data @auth_payload_complete.json "$VAULT_HOST/v1/auth/azure/login")
-exitIfEmpty "$valut_login" valut_login
-token=$(echo "$valut_login" | jq -r '.auth.client_token')
+token=$(curl --request POST --data @auth_payload_complete.json "$VAULT_HOST/v1/auth/azure/login" | jq -r '.auth.client_token')
+exitIfEmpty "$token" token
 
-valut_keys=$(curl -H "X-Vault-Token: $token" -X GET "$VAULT_HOST/v1/secret/data/$VAULT_KEY")
+valut_keys=$(curl -H "X-Vault-Token: $token" -X GET "$VAULT_HOST/v1/secret/data/$VAULT_KEY" | jq -r '.data.data')
 exitIfEmpty "$valut_keys" valut_keys
 mkfifo injectenv
-echo "$valut_keys" |
-jq -r '.data.data' |
-jq -r 'to_entries|map("\(.key)=\(.value|tostring)")|.[]' > injectenv &
+echo "$valut_keys" | jq -r 'to_entries|map("\(.key)=\(.value|tostring)")|.[]' > injectenv &
 
 while read -r i; do
   export "${i?}"
