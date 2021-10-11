@@ -49,7 +49,7 @@ def _write_to_cache_file(
     cache_file.truncate()
 
 
-def time_since_last_updated(
+def _time_since_last_updated(
     identifier: str,
 ) -> Callable[[Dict], Optional[datetime.timedelta]]:
     return gamla.compose_left(
@@ -92,7 +92,7 @@ def auto_updating_cache(
     cache_file_name: str,
     save_local: bool,
     bucket_name: str,
-    should_update: Callable[[str], Callable[[Dict], bool]],
+    should_update: Callable[[Optional[datetime.timedelta]], bool],
 ) -> Callable:
     cache_file = _get_cache_filename(cache_file_name, factory)
     extra_fields = {
@@ -106,14 +106,14 @@ def auto_updating_cache(
         json.load,
         gamla.side_effect(
             gamla.compose_left(
-                time_since_last_updated(identifier),
+                _time_since_last_updated(identifier),
                 _total_hours_since_update,
                 lambda hours_since_last_update: f"Loading cache for [{identifier}]. Last updated {hours_since_last_update} hours ago.",
                 logging.info,
             ),
         ),
         gamla.ternary(
-            should_update(identifier),
+            gamla.compose_left(_time_since_last_updated(identifier), should_update),
             gamla.compose_left(
                 gamla.ignore_input(factory),
                 file_store.save_to_bucket_return_hash(save_local, bucket_name),
