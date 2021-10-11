@@ -50,7 +50,7 @@ cat <<EOF > auth_payload_complete.json
     "vmss_name": "$vmss_name"
 }
 EOF
-echo Auth aginst valut with:
+echo Auth against valut with:
 cat auth_payload_complete.json
 
 export VAULT_SKIP_VERIFY=true
