@@ -50,8 +50,6 @@ cat <<EOF > auth_payload_complete.json
     "vmss_name": "$vmss_name"
 }
 EOF
-echo Auth against valut with:
-cat auth_payload_complete.json
 
 export VAULT_SKIP_VERIFY=true
 token=$(curl --request POST --data @auth_payload_complete.json "$VAULT_HOST/v1/auth/azure/login" | jq -r '.auth.client_token')
