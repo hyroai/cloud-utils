@@ -4,7 +4,7 @@ import inspect
 import json
 import logging
 import os
-from typing import Callable, Dict
+from typing import Callable, Dict, Optional
 
 import async_lru
 import gamla
@@ -49,7 +49,9 @@ def _write_to_cache_file(
     cache_file.truncate()
 
 
-def _time_since_last_updated(identifier: str):
+def _time_since_last_updated(
+    identifier: str,
+) -> Callable[[Dict], Optional[datetime.timedelta]]:
     return gamla.compose_left(
         gamla.get_in_or_none([identifier, _LAST_RUN_TIMESTAMP]),
         gamla.unless(
@@ -57,30 +59,6 @@ def _time_since_last_updated(identifier: str):
             gamla.compose_left(
                 datetime.datetime.fromisoformat,
                 lambda last_updated: datetime.datetime.now() - last_updated,
-            ),
-        ),
-    )
-
-
-def _should_update(
-    identifier: str,
-    allow_update: bool,
-    force_update: bool,
-    ttl_hours: int,
-) -> Callable[[Dict], bool]:
-    return gamla.anyjuxt(
-        gamla.just(force_update),
-        gamla.alljuxt(
-            gamla.just(allow_update),
-            gamla.anyjuxt(
-                gamla.complement(gamla.inside(identifier)),
-                gamla.compose_left(
-                    _time_since_last_updated(identifier),
-                    gamla.anyjuxt(
-                        gamla.equals(None),
-                        gamla.greater_than(datetime.timedelta(hours=ttl_hours)),
-                    ),
-                ),
             ),
         ),
     )
@@ -97,7 +75,6 @@ def _get_cache_filename(
     cache_file_name: str,
     factory: Callable,
 ) -> str:
-
     cache_file = os.path.join(
         os.path.dirname(factory.__code__.co_filename),
         cache_file_name,
@@ -112,12 +89,10 @@ def _get_cache_filename(
 
 def auto_updating_cache(
     factory: Callable,
-    allow_update: bool,
     cache_file_name: str,
     save_local: bool,
     bucket_name: str,
-    force_update: bool,
-    ttl_hours: int,
+    should_update: Callable[[Optional[datetime.timedelta]], bool],
 ) -> Callable:
     cache_file = _get_cache_filename(cache_file_name, factory)
     extra_fields = {
@@ -138,7 +113,7 @@ def auto_updating_cache(
             ),
         ),
         gamla.ternary(
-            _should_update(identifier, allow_update, force_update, ttl_hours),
+            gamla.compose_left(_time_since_last_updated(identifier), should_update),
             gamla.compose_left(
                 gamla.ignore_input(factory),
                 file_store.save_to_bucket_return_hash(save_local, bucket_name),
