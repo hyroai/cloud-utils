@@ -9,8 +9,8 @@ import pathlib
 from typing import Any, Text
 
 import gamla
-from azure.storage import blob
 from azure import common
+from azure.storage import blob
 
 _API_VERSION = "2019-02-02"
 
