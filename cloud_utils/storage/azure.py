@@ -10,6 +10,7 @@ from typing import Any, Text
 
 import gamla
 from azure.storage import blob
+from azure import common
 
 _API_VERSION = "2019-02-02"
 
@@ -97,11 +98,14 @@ def download_blob_as_string_with_encoding(
     bucket_name: str,
     blob_name: str,
 ) -> Text:
-    return (
-        _blob_service()
-        .get_blob_to_text(bucket_name, blob_name, encoding=encoding)
-        .content
-    )
+    try:
+        return (
+            _blob_service()
+            .get_blob_to_text(bucket_name, blob_name, encoding=encoding)
+            .content
+        )
+    except common.AzureMissingResourceHttpError:
+        raise FileNotFoundError
 
 
 download_blob_as_string = download_blob_as_string_with_encoding("utf-8")
@@ -109,18 +113,24 @@ download_blob_as_string = download_blob_as_string_with_encoding("utf-8")
 
 @gamla.curry
 def download_blob_as_stream(bucket_name: str, blob_name: str) -> io.BytesIO:
-    stream = io.BytesIO()
-    _blob_service().get_blob_to_stream(bucket_name, blob_name, stream)
-    stream.seek(0)
-    return stream
+    try:
+        stream = io.BytesIO()
+        _blob_service().get_blob_to_stream(bucket_name, blob_name, stream)
+        stream.seek(0)
+        return stream
+    except common.AzureMissingResourceHttpError:
+        raise FileNotFoundError
 
 
 def download_blob_to_file(bucket_name: str, blob_name: str, path: pathlib.Path):
-    return _blob_service().get_blob_to_path(
-        bucket_name,
-        blob_name,
-        str(path.resolve()),
-    )
+    try:
+        return _blob_service().get_blob_to_path(
+            bucket_name,
+            blob_name,
+            str(path.resolve()),
+        )
+    except common.AzureMissingResourceHttpError:
+        raise FileNotFoundError
 
 
 @gamla.curry
