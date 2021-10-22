@@ -32,7 +32,7 @@ async def _instance_metadata():
     ).json()
 
 
-@AsyncTTL(time_to_live=60 * 60 * 12, maxsize=1)
+@AsyncTTL(time_to_live=60 * 60 * 23, maxsize=1)  # Vault token is valid for 24 hour.
 async def _vault_headers():
     jwt = await _identity_token()
     token = await gamla.pipe(
