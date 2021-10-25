@@ -35,23 +35,23 @@ async def _instance_metadata():
 @AsyncTTL(time_to_live=60 * 60 * 23, maxsize=1)  # Vault token is valid for 24 hour.
 async def _vault_headers():
     jwt = await _identity_token()
-    token = await gamla.pipe(
-        await _instance_metadata(),
-        gamla.get_in(["compute"]),
-        lambda compute: {
-            "role": os.getenv("ROLE") or f'{os.getenv("VAULT_KEY")}-role',
-            "jwt": jwt,
-            "subscription_id": gamla.get_in(["subscriptionId"])(compute),
-            "resource_group_name": gamla.get_in(["resourceGroupName"])(compute),
-            "vm_name": gamla.get_in(["name"])(compute),
-            "vmss_name": gamla.get_in(["vmScaleSetName"])(compute),
-        },
-        gamla.post_json_async(30, f"{base_vault_url}/auth/azure/login"),
-        lambda response: response.json(),
-        gamla.get_in(["auth", "client_token"]),
-    )
-
-    return {"X-Vault-Token": token}
+    return {
+        "X-Vault-Token": await gamla.pipe(
+            await _instance_metadata(),
+            gamla.get_in(["compute"]),
+            lambda compute: {
+                "role": os.getenv("ROLE") or f'{os.getenv("VAULT_KEY")}-role',
+                "jwt": jwt,
+                "subscription_id": gamla.get_in(["subscriptionId"])(compute),
+                "resource_group_name": gamla.get_in(["resourceGroupName"])(compute),
+                "vm_name": gamla.get_in(["name"])(compute),
+                "vmss_name": gamla.get_in(["vmScaleSetName"])(compute),
+            },
+            gamla.post_json_async(30, f"{base_vault_url}/auth/azure/login"),
+            lambda response: response.json(),
+            gamla.get_in(["auth", "client_token"]),
+        ),
+    }
 
 
 async def read_key(path: str) -> Dict[str, str]:
