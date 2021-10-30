@@ -1,10 +1,8 @@
-import os
-from typing import Dict
+from typing import Any, Callable, Coroutine, Dict, Optional
 
 import gamla
 from cache import AsyncTTL
 
-base_vault_url = f'{os.getenv("VAULT_HOST")}/v1'
 base_metadata_url = "http://169.254.169.254/metadata"
 
 
@@ -32,15 +30,18 @@ async def _instance_metadata():
     ).json()
 
 
-@AsyncTTL(time_to_live=60 * 60 * 23, maxsize=1)  # Vault token is valid for 24 hour.
-async def _vault_headers():
-    jwt = await _identity_token()
-    return {
-        "X-Vault-Token": await gamla.pipe(
+def _make_pod_identity_token(
+    role: str,
+    base_vault_url: str,
+) -> Callable[[], Coroutine[Any, Any, str]]:
+    @AsyncTTL(time_to_live=60 * 60 * 23, maxsize=1)  # Vault token is valid for 24 hour.
+    async def _pod_identity_token() -> str:
+        jwt = await _identity_token()
+        return await gamla.pipe(
             await _instance_metadata(),
             gamla.get_in(["compute"]),
             lambda compute: {
-                "role": os.getenv("ROLE") or f'{os.getenv("VAULT_KEY")}-role',
+                "role": role,
                 "jwt": jwt,
                 "subscription_id": gamla.get_in(["subscriptionId"])(compute),
                 "resource_group_name": gamla.get_in(["resourceGroupName"])(compute),
@@ -50,26 +51,64 @@ async def _vault_headers():
             gamla.post_json_async(30, f"{base_vault_url}/auth/azure/login"),
             lambda response: response.json(),
             gamla.get_in(["auth", "client_token"]),
-        ),
-    }
+        )
+
+    return _pod_identity_token
 
 
-async def read_key(path: str) -> Dict[str, str]:
-    return gamla.pipe(
-        await gamla.get_async_with_headers(
-            (await _vault_headers()),
+def _make_vault_headers(
+    token: Callable[[], Coroutine[Any, Any, str]],
+) -> Callable[[], Coroutine[Any, Any, Dict[str, str]]]:
+    async def _vault_headers() -> Dict[str, str]:
+        return {
+            "X-Vault-Token": await token(),
+        }
+
+    return _vault_headers
+
+
+def _make_read_key(
+    base_vault_url: str,
+    headers: Callable[[], Coroutine[Any, Any, dict]],
+):
+    async def read_key(path: str) -> Dict[str, str]:
+        return gamla.pipe(
+            await gamla.get_async_with_headers(
+                (await headers()),
+                30,
+                f"{base_vault_url}/secret/data/{path}",
+            ),
+            lambda response: response.json(),
+            gamla.get_in(["data", "data"]),
+        )
+
+    return read_key
+
+
+def _make_write_key(
+    base_vault_url: str,
+    headers: Callable[[], Coroutine[Any, Any, dict]],
+):
+    async def write_key(path: str, value: Dict[str, str]):
+        return await gamla.post_json_with_extra_headers_async(
+            (await headers()),
             30,
             f"{base_vault_url}/secret/data/{path}",
-        ),
-        lambda response: response.json(),
-        gamla.get_in(["data", "data"]),
+            {"data": value},
+        )
+
+    return write_key
+
+
+def make_vault(host: str, role: str, token: Optional[str]):
+    base_vault_url = f"{host}/v1"
+    headers = _make_vault_headers(
+        gamla.just(gamla.to_awaitable(token))
+        if token
+        else _make_pod_identity_token(role, base_vault_url),
     )
 
-
-async def write_key(path: str, value: Dict[str, str]):
-    return await gamla.post_json_with_extra_headers_async(
-        (await _vault_headers()),
-        30,
-        f"{base_vault_url}/secret/data/{path}",
-        {"data": value},
+    return _make_write_key(base_vault_url, headers), _make_read_key(
+        base_vault_url,
+        headers,
     )
