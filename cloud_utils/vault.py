@@ -67,7 +67,7 @@ def _make_vault_headers(
     return _vault_headers
 
 
-def make_read_key(
+def _make_read_key(
     base_vault_url: str,
     headers: Callable[[], Coroutine[Any, Any, dict]],
 ):
@@ -85,7 +85,7 @@ def make_read_key(
     return read_key
 
 
-def make_write_key(
+def _make_write_key(
     base_vault_url: str,
     headers: Callable[[], Coroutine[Any, Any, dict]],
 ):
@@ -108,7 +108,7 @@ def make_vault(host: str, role: str, token: Optional[str]):
         else _make_pod_identity_token(role, base_vault_url),
     )
 
-    return make_write_key(base_vault_url, headers), make_read_key(
+    return _make_write_key(base_vault_url, headers), _make_read_key(
         base_vault_url,
         headers,
     )
