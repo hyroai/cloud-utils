@@ -101,11 +101,12 @@ def _make_write_key(
 
 
 def make_vault(host: str, role: str, token: Optional[str]):
+    async def get_token():
+        return token
+
     base_vault_url = f"{host}/v1"
     headers = _make_vault_headers(
-        gamla.just(gamla.to_awaitable(token))
-        if token
-        else _make_pod_identity_token(role, base_vault_url),
+        get_token if token else _make_pod_identity_token(role, base_vault_url),
     )
 
     return _make_write_key(base_vault_url, headers), _make_read_key(
