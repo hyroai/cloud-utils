@@ -6,6 +6,10 @@ from cache import AsyncTTL
 base_metadata_url = "http://169.254.169.254/metadata"
 
 
+class KeyDoesNotExist(Exception):
+    pass
+
+
 async def _identity_token():
     return (
         (
@@ -79,7 +83,11 @@ def _make_read_key(
                 f"{base_vault_url}/secret/data/{path}",
             ),
             lambda response: response.json(),
-            gamla.get_in(["data", "data"]),
+            gamla.excepts(
+                KeyError,
+                gamla.make_raise(KeyDoesNotExist),
+                gamla.get_in(["data", "data"]),
+            ),
         )
 
     return read_key
@@ -100,6 +108,18 @@ def _make_write_key(
     return write_key
 
 
+def _make_update_key(read_key: Callable, write_key: Callable):
+    async def update_key(path: str, value: Dict[str, str]):
+        current_value = {}
+        try:
+            current_value = await read_key(path)
+        except KeyDoesNotExist:
+            pass
+        return await write_key(path, gamla.merge(current_value, value))
+
+    return update_key
+
+
 def make_vault(host: str, role: str, token: Optional[str]):
     async def get_token():
         return token
@@ -109,7 +129,8 @@ def make_vault(host: str, role: str, token: Optional[str]):
         get_token if token else _make_pod_identity_token(role, base_vault_url),
     )
 
-    return _make_write_key(base_vault_url, headers), _make_read_key(
+    write_key, read_key = _make_write_key(base_vault_url, headers), _make_read_key(
         base_vault_url,
         headers,
     )
+    return write_key, read_key, _make_update_key(read_key, write_key)
