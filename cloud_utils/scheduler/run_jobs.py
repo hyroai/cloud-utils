@@ -1,5 +1,6 @@
 import argparse
 import json
+import logging
 import sys
 from typing import Dict, Iterable, Optional, Sequence
 
@@ -70,4 +71,5 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
 
 
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO)
     exit(main())
