@@ -1,10 +1,10 @@
 import argparse
 import json
-import logging
 import sys
 from typing import Dict, Iterable, Optional, Sequence
 
 import gamla
+from config import logging_config  # noqa: F401
 
 from cloud_utils.scheduler import kubernetes_connector
 
@@ -71,5 +71,4 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
 
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO)
     exit(main())
