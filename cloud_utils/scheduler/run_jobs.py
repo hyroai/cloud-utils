@@ -4,8 +4,8 @@ import sys
 from typing import Dict, Iterable, Optional, Sequence
 
 import gamla
-from config import logging_config  # noqa: F401
 
+from cloud_utils.config import logging_config  # noqa: F401
 from cloud_utils.scheduler import kubernetes_connector
 
 
