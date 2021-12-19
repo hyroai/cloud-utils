@@ -1,38 +1,37 @@
 import traceback
-from typing import Dict, Optional, Text
+from typing import Dict
 
 import gamla
-import requests
+
+send_message_to_webhook = gamla.post_json_async(5)
 
 
-def send_message_to_webhook(webhook_url: Text, text: Text, data: Optional[Dict]):
-    message = {"text": text}
-    if data is not None:
-        message.update(data)
-    requests.post(webhook_url, json=message)
-
-
-def report_exception(webhook_url: Text, text: Text):
+def _make_exception_payload(text: str) -> Dict:
     """Assumes being called from within a caught exception context."""
-    send_message_to_webhook(
-        webhook_url,
+    return {
+        "text": text,
+        "attachments": [
+            {
+                "fields": [
+                    {
+                        "title": "Exception",
+                        "short": False,
+                        "value": gamla.pipe(
+                            traceback.format_exc(),
+                            str.splitlines,
+                            reversed,
+                            "\n".join,
+                        ),
+                    },
+                ],
+            },
+        ],
+    }
+
+
+async def report_exception(webhook_url: str, text: str):
+    await gamla.pipe(
         text,
-        data={
-            "attachments": [
-                {
-                    "fields": [
-                        {
-                            "title": "Exception",
-                            "short": False,
-                            "value": gamla.pipe(
-                                traceback.format_exc(),
-                                str.splitlines,
-                                reversed,
-                                "\n".join,
-                            ),
-                        },
-                    ],
-                },
-            ],
-        },
+        _make_exception_payload,
+        gamla.post_json_async(5, webhook_url),
     )
