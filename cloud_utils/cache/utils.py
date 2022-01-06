@@ -4,7 +4,7 @@ import inspect
 import json
 import logging
 import os
-from typing import Callable, Dict, Optional, Any, Union
+from typing import Any, Callable, Dict, Optional
 
 import async_lru
 import gamla
