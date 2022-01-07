@@ -24,7 +24,7 @@
             "credentials.json": ""
           },
           "mount_path": "/var/secrets/gcp",
-          "secret_name": "analysis-gcp-credentials",
+          "secret_name": "prod-jupyter-gcp-credentials",
           "volume_name": "gcp-credentials"
         }
       ],
