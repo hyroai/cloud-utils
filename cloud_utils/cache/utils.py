@@ -4,7 +4,7 @@ import inspect
 import json
 import logging
 import os
-from typing import Any, Callable, Dict, Optional
+from typing import Callable, Dict, Optional
 
 import async_lru
 import gamla
@@ -71,37 +71,40 @@ _total_hours_since_update = gamla.ternary(
 )
 
 
-def _get_cache_filename(cache_file_name: str, path: str) -> str:
-    cache_file = os.path.join(
-        path,
-        cache_file_name,
+@gamla.curry
+def default_cache_file_path(cache_file_name, factory):
+    return gamla.pipe(
+        factory,
+        gamla.function_to_directory,
+        gamla.pair_right(gamla.just(cache_file_name)),
+        gamla.star(os.path.join),
     )
 
-    if not os.path.isfile(cache_file):
-        with open(cache_file, "w") as f:
+
+def _create_cache_file(path: str) -> str:
+    if not os.path.isfile(path):
+        with open(path, "w") as f:
             f.write("{}\n")
 
-    return cache_file
+    return path
 
 
 def auto_updating_cache(
     factory: Callable,
-    cache_file_name: str,
+    cache_file_path: str,
     save_local: bool,
     bucket_name: str,
     should_update: Callable[[Optional[datetime.timedelta]], bool],
-    identifier_func: Callable[[Any], str],
-    path: str,
-) -> Callable:
-    cache_file = _get_cache_filename(cache_file_name, path)
+    function_to_identifier: Callable,
+):
+    cache_file = _create_cache_file(cache_file_path)
     extra_fields = {
         "filename": os.path.basename(factory.__code__.co_filename),
         "lineno": factory.__code__.co_firstlineno,
     }
 
-    async def inner(*args):
-        identifier = identifier_func(*args)
-
+    async def inner(*args, **kwargs):
+        identifier = function_to_identifier(*args, kwargs)
         return await gamla.pipe(
             cache_file,
             file_store.open_file("r"),
@@ -118,6 +121,7 @@ def auto_updating_cache(
                 gamla.compose_left(_time_since_last_updated(identifier), should_update),
                 gamla.compose_left(
                     gamla.just(factory),
+                    gamla.to_awaitable,
                     gamla.apply_async(*args),
                     file_store.save_to_bucket_return_hash(save_local, bucket_name),
                     gamla.side_effect(
