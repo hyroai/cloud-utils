@@ -71,64 +71,73 @@ _total_hours_since_update = gamla.ternary(
 )
 
 
-def _get_cache_filename(
-    cache_file_name: str,
-    factory: Callable,
-) -> str:
-    cache_file = os.path.join(
-        os.path.dirname(factory.__code__.co_filename),
-        cache_file_name,
+@gamla.curry
+def default_cache_file_path(cache_file_name, factory):
+    return gamla.pipe(
+        factory,
+        gamla.function_to_directory,
+        gamla.pair_right(gamla.just(cache_file_name)),
+        gamla.star(os.path.join),
     )
 
-    if not os.path.isfile(cache_file):
-        with open(cache_file, "w") as f:
+
+def _create_cache_file(path: str) -> str:
+    if not os.path.isfile(path):
+        with open(path, "w") as f:
             f.write("{}\n")
 
-    return cache_file
+    return path
 
 
 def auto_updating_cache(
     factory: Callable,
-    cache_file_name: str,
+    cache_file_path: str,
     save_local: bool,
     bucket_name: str,
     should_update: Callable[[Optional[datetime.timedelta]], bool],
-) -> Callable:
-    cache_file = _get_cache_filename(cache_file_name, factory)
+    function_to_identifier: Callable,
+):
+    cache_file = _create_cache_file(cache_file_path)
     extra_fields = {
         "filename": os.path.basename(factory.__code__.co_filename),
         "lineno": factory.__code__.co_firstlineno,
     }
-    identifier = gamla.function_to_uid(factory)
-    return gamla.compose_left(
-        gamla.just(cache_file),
-        file_store.open_file("r"),
-        json.load,
-        gamla.side_effect(
-            gamla.compose_left(
-                _time_since_last_updated(identifier),
-                _total_hours_since_update,
-                lambda hours_since_last_update: f"Loading cache for [{identifier}]. Last updated {hours_since_last_update} hours ago.",
-                logging.info,
-            ),
-        ),
-        gamla.ternary(
-            gamla.compose_left(_time_since_last_updated(identifier), should_update),
-            gamla.compose_left(
-                gamla.ignore_input(factory),
-                file_store.save_to_bucket_return_hash(save_local, bucket_name),
-                gamla.side_effect(
-                    _write_to_cache_file(
-                        cache_file,
-                        identifier,
-                        extra_fields,
-                    ),
+
+    async def inner(*args, **kwargs):
+        identifier = function_to_identifier(*args, kwargs)
+        return await gamla.pipe(
+            cache_file,
+            file_store.open_file("r"),
+            json.load,
+            gamla.side_effect(
+                gamla.compose_left(
+                    _time_since_last_updated(identifier),
+                    _total_hours_since_update,
+                    lambda hours_since_last_update: f"Loading cache for [{identifier}]. Last updated {hours_since_last_update} hours ago.",
+                    logging.info,
                 ),
-                gamla.log_text(f"Finished updating cache for [{identifier}]."),
             ),
-            gamla.get_in([identifier, _RESULT_HASH_KEY]),
-        ),
-    )
+            gamla.ternary(
+                gamla.compose_left(_time_since_last_updated(identifier), should_update),
+                gamla.compose_left(
+                    gamla.just(factory),
+                    gamla.to_awaitable,
+                    gamla.apply_async(*args),
+                    file_store.save_to_bucket_return_hash(save_local, bucket_name),
+                    gamla.side_effect(
+                        _write_to_cache_file(
+                            cache_file,
+                            identifier,
+                            extra_fields,
+                        ),
+                    ),
+                    gamla.log_text(f"Finished updating cache for [{identifier}]."),
+                ),
+                gamla.get_in([identifier, _RESULT_HASH_KEY]),
+            ),
+        )
+
+    return inner
 
 
 def persistent_cache(
