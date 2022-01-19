@@ -120,8 +120,7 @@ def auto_updating_cache(
             gamla.ternary(
                 gamla.compose_left(_time_since_last_updated(identifier), should_update),
                 gamla.compose_left(
-                    gamla.just(factory),
-                    gamla.to_awaitable,
+                    gamla.just(gamla.compose_left(factory, gamla.to_awaitable)),
                     gamla.apply_async(*args),
                     file_store.save_to_bucket_return_hash(save_local, bucket_name),
                     gamla.side_effect(
