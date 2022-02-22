@@ -55,6 +55,7 @@ def _save_local(object_hash: str, obj: Any) -> Any:
 
 
 @gamla.curry
+@gamla.timeit
 def load_by_hash(should_save_local: bool, bucket_name: str, object_hash: str) -> Dict:
     try:
         return gamla.pipe(
