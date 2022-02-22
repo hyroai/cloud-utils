@@ -109,6 +109,7 @@ _local_cache_filename = gamla.wrap_str("{}.pickle")
 _make_path = gamla.compose(_LOCAL_CACHE_PATH.joinpath, _local_cache_filename)
 
 
+@gamla.timeit
 def _load_cache_from_local(cache_name: str) -> Dict[Tuple, Any]:
     with _make_path(cache_name).open("rb") as local_cache_file:
         return pickle.load(local_cache_file)
