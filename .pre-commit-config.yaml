@@ -24,9 +24,10 @@ repos:
       - id: add-trailing-comma
 
   - repo: https://github.com/ambv/black
-    rev: 20.8b1
+    rev: 21.6b0
     hooks:
       - id: black
+        additional_dependencies: ['click==8.0.4']
 
   - repo: https://gitlab.com/pycqa/flake8
     rev: 3.8.4
