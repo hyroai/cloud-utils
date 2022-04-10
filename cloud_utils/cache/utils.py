@@ -12,8 +12,8 @@ import redis
 
 from cloud_utils.cache import file_store, redis_utils
 
-_RESULT_HASH_KEY = "result_hash"
-_LAST_RUN_TIMESTAMP = "last_run_timestamp"
+RESULT_HASH_KEY = "result_hash"
+LAST_RUN_TIMESTAMP = "last_run_timestamp"
 
 
 class VersionNotFound(Exception):
@@ -24,21 +24,13 @@ class VersionNotFound(Exception):
 def _write_to_cache_file(
     cache_file_name: str,
     identifier: str,
-    extra_fields: Dict,
-    hash_to_load: str,
+    hash_dict: Dict,
 ):
     cache_file = file_store.open_file("r+")(cache_file_name)
     new_versions_dict = gamla.pipe(
         cache_file,
         json.load,
-        gamla.add_key_value(
-            identifier,
-            {
-                _RESULT_HASH_KEY: hash_to_load,
-                _LAST_RUN_TIMESTAMP: datetime.datetime.now().isoformat(),
-                **extra_fields,
-            },
-        ),
+        gamla.add_key_value(identifier, hash_dict),
         dict.items,
         sorted,
         dict,
@@ -53,7 +45,7 @@ def _time_since_last_updated(
     identifier: str,
 ) -> Callable[[Dict], Optional[datetime.timedelta]]:
     return gamla.compose_left(
-        gamla.get_in_or_none([identifier, _LAST_RUN_TIMESTAMP]),
+        gamla.get_in_or_none([identifier, LAST_RUN_TIMESTAMP]),
         gamla.unless(
             gamla.equals(None),
             gamla.compose_left(
@@ -96,12 +88,9 @@ def auto_updating_cache(
     bucket_name: str,
     should_update: Callable[[Optional[datetime.timedelta]], bool],
     function_to_identifier: Callable,
+    hash_to_dict: Callable[[str], Dict],
 ):
     cache_file = _create_cache_file(cache_file_path)
-    extra_fields = {
-        "filename": os.path.basename(factory.__code__.co_filename),
-        "lineno": factory.__code__.co_firstlineno,
-    }
 
     async def inner(*args, **kwargs):
         identifier = function_to_identifier(*args, kwargs)
@@ -123,16 +112,17 @@ def auto_updating_cache(
                     gamla.just(gamla.compose_left(factory, gamla.to_awaitable)),
                     gamla.apply_async(*args),
                     file_store.save_to_bucket_return_hash(save_local, bucket_name),
+                    hash_to_dict,
                     gamla.side_effect(
                         _write_to_cache_file(
                             cache_file,
                             identifier,
-                            extra_fields,
                         ),
                     ),
                     gamla.log_text(f"Finished updating cache for [{identifier}]."),
+                    gamla.itemgetter(RESULT_HASH_KEY),
                 ),
-                gamla.get_in([identifier, _RESULT_HASH_KEY]),
+                gamla.get_in([identifier, RESULT_HASH_KEY]),
             ),
         )
 
