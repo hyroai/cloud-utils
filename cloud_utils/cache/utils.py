@@ -12,8 +12,8 @@ import redis
 
 from cloud_utils.cache import file_store, redis_utils
 
-RESULT_HASH_KEY = "result_hash"
-LAST_RUN_TIMESTAMP = "last_run_timestamp"
+_RESULT_HASH_KEY = "result_hash"
+_LAST_RUN_TIMESTAMP = "last_run_timestamp"
 
 
 class VersionNotFound(Exception):
@@ -45,7 +45,7 @@ def _time_since_last_updated(
     identifier: str,
 ) -> Callable[[Dict], Optional[datetime.timedelta]]:
     return gamla.compose_left(
-        gamla.get_in_or_none([identifier, LAST_RUN_TIMESTAMP]),
+        gamla.get_in_or_none([identifier, _LAST_RUN_TIMESTAMP]),
         gamla.unless(
             gamla.equals(None),
             gamla.compose_left(
@@ -88,7 +88,7 @@ def auto_updating_cache(
     bucket_name: str,
     should_update: Callable[[Optional[datetime.timedelta]], bool],
     function_to_identifier: Callable,
-    hash_to_dict: Callable[[str], Dict],
+    custom_spec: Dict,
 ):
     cache_file = _create_cache_file(cache_file_path)
 
@@ -114,13 +114,23 @@ def auto_updating_cache(
                     file_store.save_to_bucket_return_hash(save_local, bucket_name),
                     gamla.side_effect(
                         gamla.compose_left(
-                            hash_to_dict,
+                            gamla.apply_spec(
+                                gamla.merge(
+                                    {
+                                        _RESULT_HASH_KEY: gamla.identity,
+                                        _LAST_RUN_TIMESTAMP: gamla.just(
+                                            datetime.datetime.now().isoformat(),
+                                        ),
+                                    },
+                                    custom_spec,
+                                ),
+                            ),
                             _write_to_cache_file(cache_file, identifier),
                         ),
                     ),
                     gamla.log_text(f"Finished updating cache for [{identifier}]."),
                 ),
-                gamla.get_in([identifier, RESULT_HASH_KEY]),
+                gamla.get_in([identifier, _RESULT_HASH_KEY]),
             ),
         )
 
