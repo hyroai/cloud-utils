@@ -112,15 +112,13 @@ def auto_updating_cache(
                     gamla.just(gamla.compose_left(factory, gamla.to_awaitable)),
                     gamla.apply_async(*args),
                     file_store.save_to_bucket_return_hash(save_local, bucket_name),
-                    hash_to_dict,
                     gamla.side_effect(
-                        _write_to_cache_file(
-                            cache_file,
-                            identifier,
+                        gamla.compose_left(
+                            hash_to_dict,
+                            _write_to_cache_file(cache_file, identifier),
                         ),
                     ),
                     gamla.log_text(f"Finished updating cache for [{identifier}]."),
-                    gamla.itemgetter(RESULT_HASH_KEY),
                 ),
                 gamla.get_in([identifier, RESULT_HASH_KEY]),
             ),
