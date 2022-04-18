@@ -14,6 +14,7 @@ try:
         from cloud_utils.storage import aws as _storage_service  # type: ignore
 
     download_blob_as_string = _storage_service.download_blob_as_string
+    download_blob_as_stream = _storage_service.download_blob_as_stream
     download_blob_to_file = _storage_service.download_blob_to_file
     upload_blob = _storage_service.upload_blob
     blob_exists = _storage_service.blob_exists
