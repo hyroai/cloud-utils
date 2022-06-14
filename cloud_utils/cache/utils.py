@@ -93,7 +93,7 @@ def auto_updating_cache(
     cache_file = _create_cache_file(cache_file_path)
 
     async def inner(*args, **kwargs):
-        identifier = function_to_identifier(*args, kwargs)
+        identifier = function_to_identifier(*args, **kwargs)
         return await gamla.pipe(
             cache_file,
             file_store.open_file("r"),
