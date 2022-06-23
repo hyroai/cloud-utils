@@ -102,7 +102,7 @@ def auto_updating_cache(
                 gamla.compose_left(
                     _time_since_last_updated(identifier),
                     _total_hours_since_update,
-                    lambda hours_since_last_update: f"Loading cache for [{identifier}]. Last updated {hours_since_last_update} hours ago.",
+                    lambda hours_since_last_update: f"Loading cache for [{identifier}]. source file [{factory.__code__.co_filename}]. Last updated {hours_since_last_update} hours ago.",
                     logging.info,
                 ),
             ),
