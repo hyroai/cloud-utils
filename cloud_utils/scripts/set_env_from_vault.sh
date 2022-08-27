@@ -57,10 +57,5 @@ exitIfEmpty "$token" token
 
 valut_keys=$(curl -H "X-Vault-Token: $token" -X GET "$VAULT_HOST/v1/secret/data/$VAULT_KEY" | jq -r '.data.data')
 exitIfEmpty "$valut_keys" valut_keys
-mkfifo injectenv
-echo "$valut_keys" | jq -r 'to_entries|map("\(.key)=\(.value|tostring)")|.[]' > injectenv &
 
-while read -r i; do
-  export "${i?}"
-done < injectenv
-printenv
+echo "$valut_keys" | jq -r 'to_entries|map("\(.key)=\(.value|tostring)")|.[]'
