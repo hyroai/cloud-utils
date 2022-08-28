@@ -88,10 +88,13 @@ def auto_updating_cache(
     bucket_name: str,
     should_update: Callable[[Optional[datetime.timedelta]], bool],
     function_to_identifier: Callable,
-    custom_spec: Dict,
+    custom_spec: Dict[str, Callable],
 ):
     cache_file = _create_cache_file(cache_file_path)
-    filename = os.path.join(os.path.dirname(cache_file), custom_spec.get("filename")())
+    filename = os.path.join(
+        os.path.dirname(cache_file),
+        custom_spec.get("filename", lambda _: "cache_file")(),
+    )
 
     async def inner(*args, **kwargs):
         identifier = function_to_identifier(*args, **kwargs)
