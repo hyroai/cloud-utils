@@ -176,6 +176,7 @@ def _make_pod_manifest(
 @gamla.curry
 def _make_job_spec(
     labels: Dict[Text, Text],
+    annotations: Dict[Text, Text],
     pod_manifest: client.V1PodSpec,
 ) -> client.V1JobSpec:
     return client.V1JobSpec(
@@ -183,7 +184,7 @@ def _make_job_spec(
         active_deadline_seconds=60 * 60 * 3,  # Limit job runtime to 3 hours
         backoff_limit=1,
         template=client.V1PodTemplateSpec(
-            metadata=client.V1ObjectMeta(labels=labels),
+            metadata=client.V1ObjectMeta(labels=labels, annotations=annotations),
             spec=pod_manifest,
         ),
     )
@@ -196,6 +197,13 @@ _DEFAULT_JOB_TOLERATIONS = (
         "effect": "NoSchedule",
     },
 )
+
+_DEFAULT_JOB_ANNOTATIONS = {
+    "vault.hashicorp.com/agent-inject": "true",
+    "vault.hashicorp.com/agent-inject-secret-env": "secret/data/dev",
+    "vault.hashicorp.com/agent-inject-template-env": "{{ with secret 'secret/data/dev' }}\n  {{ range $k, $v := .Data.data }}\n    {{ $k }}={{ $v }}\n  {{ end }}\n{{ end }}\n",
+    "vault.hashicorp.com/role": "dev-app",
+}
 
 
 _make_tolerations: Callable[
@@ -219,6 +227,7 @@ def _make_base_pod_spec(
     tag: str,
     node_selector: Dict[str, str],
     tolerations: Tuple[Dict, ...],
+    service_account_name: str,
 ) -> Dict[Text, Any]:
     return {
         "containers": [{"image": f"{image}:{tag}", "name": f"{pod_name}-container"}],
@@ -228,6 +237,7 @@ def _make_base_pod_spec(
         "restartPolicy": "Never",
         "nodeSelector": node_selector,
         "tolerations": _make_tolerations(tolerations),
+        "serviceAccountName": service_account_name,
     }
 
 
@@ -271,6 +281,7 @@ def make_job_spec(
             tag,
             run.get("node_selector", {"role": "jobs"}),
             run.get("tolerations", _DEFAULT_JOB_TOLERATIONS),
+            run.get("serviceAccountName", "dev-app"),
         ),
         _make_pod_manifest(
             run.get("env_variables"),
@@ -279,7 +290,10 @@ def make_job_spec(
             run.get("args"),
             extra_arg,
         ),
-        _make_job_spec(run.get("labels")),
+        _make_job_spec(
+            run.get("labels"),
+            run.get("annotations", _DEFAULT_JOB_ANNOTATIONS),
+        ),
     )
 
 
