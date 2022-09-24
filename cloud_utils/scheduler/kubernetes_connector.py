@@ -201,7 +201,7 @@ _DEFAULT_JOB_TOLERATIONS = (
 _DEFAULT_JOB_ANNOTATIONS = {
     "vault.hashicorp.com/agent-inject": "true",
     "vault.hashicorp.com/agent-inject-secret-env": "secret/data/dev",
-    "vault.hashicorp.com/agent-inject-template-env": "{{ with secret 'secret/data/dev' }}\n  {{ range $k, $v := .Data.data }}\n    {{ $k }}={{ $v }}\n  {{ end }}\n{{ end }}\n",
+    "vault.hashicorp.com/agent-inject-template-env": '{{ with secret "secret/data/dev" }}\n  {{ range $k, $v := .Data.data }}\n    {{ $k }}={{ $v }}\n  {{ end }}\n{{ end }}\n',
     "vault.hashicorp.com/role": "dev-app",
 }
 
