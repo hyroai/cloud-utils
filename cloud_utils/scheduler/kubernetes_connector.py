@@ -219,7 +219,7 @@ def _make_base_pod_spec(
     tag: str,
     node_selector: Dict[str, str],
     tolerations: Tuple[Dict, ...],
-    service_account_name: str,
+    service_account_name: Optional[str],
 ) -> Dict[Text, Any]:
     return {
         "containers": [{"image": f"{image}:{tag}", "name": f"{pod_name}-container"}],
