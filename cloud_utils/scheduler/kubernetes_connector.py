@@ -198,14 +198,6 @@ _DEFAULT_JOB_TOLERATIONS = (
     },
 )
 
-_DEFAULT_JOB_ANNOTATIONS = {
-    "vault.hashicorp.com/agent-inject": "true",
-    "vault.hashicorp.com/agent-inject-secret-env": "secret/data/dev",
-    "vault.hashicorp.com/agent-inject-template-env": '{{ with secret "secret/data/dev" }}\n  {{ range $k, $v := .Data.data }}\n    {{ $k }}={{ $v }}\n  {{ end }}\n{{ end }}\n',
-    "vault.hashicorp.com/role": "dev-app",
-}
-
-
 _make_tolerations: Callable[
     [Tuple[Dict[str, str], ...]],
     Tuple[client.V1Toleration, ...],
@@ -281,7 +273,7 @@ def make_job_spec(
             tag,
             run.get("node_selector", {"role": "jobs"}),
             run.get("tolerations", _DEFAULT_JOB_TOLERATIONS),
-            run.get("serviceAccountName", "dev-app"),
+            run.get("serviceAccountName"),
         ),
         _make_pod_manifest(
             run.get("env_variables"),
@@ -292,7 +284,7 @@ def make_job_spec(
         ),
         _make_job_spec(
             run.get("labels"),
-            run.get("annotations", _DEFAULT_JOB_ANNOTATIONS),
+            run.get("annotations"),
         ),
     )
 
