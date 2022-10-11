@@ -54,12 +54,14 @@ def _wait_for_job_completion(
     """Waits until job is completed
     Raises ApiException exception when job with given name no longer exist"""
     for i in range(wait_minutes_for_completion):
-        logging.debug("Waiting for job to complete...")
+        logging.info("Waiting for job to complete...")
         job = client.BatchV1Api().read_namespaced_job_status(
             **gamla.add_key_value("name", name)(options)
         )
         if job.status.succeeded:
             return
+        if job.status.failed:
+            raise Exception("Job failed")
         time.sleep(60)
     raise Exception(f"Job wasn't completed within {wait_minutes_for_completion} min")
 

@@ -57,4 +57,4 @@ async def delete_release(release_name: str):
     try:
         await _run_in_shell(["helm", "uninstall", release_name], "./")
     except _HelmException:
-        logging.debug(f"Unable to delete release {release_name}.")
+        logging.error(f"Unable to delete release {release_name}.")
