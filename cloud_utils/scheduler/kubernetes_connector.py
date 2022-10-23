@@ -9,7 +9,7 @@ import gamla
 from kubernetes import client
 from kubernetes.client import rest
 
-from cloud_utils.k8s import configure
+from cloud_utils.k8s import configure, utils
 
 
 def _set_dry_run(options: Dict, dry_run: bool):
@@ -134,6 +134,9 @@ def create_cron_job(
 def _make_pod_manifest(
     env_variables: List[Dict[Text, Text]],
     secrets: List[Dict[Text, Text]],
+    provide_secrets: List[str],
+    secret_provider_class: str,
+    resources: Dict[str, Dict[str, str]],
     command: List[Text],
     args: List[Text],
     extra_arg: str,
@@ -157,6 +160,19 @@ def _make_pod_manifest(
                         lambda value: os.getenv(value, value),
                     ),
                 ),
+                gamla.concat_with(
+                    gamla.map(
+                        lambda env_var: {
+                            "name": env_var,
+                            "valueFrom": {
+                                "secretKeyRef": {
+                                    "name": f"{utils.to_kebab_case(env_var)}-vault-secret",
+                                    "key": env_var,
+                                },
+                            },
+                        },
+                    )(provide_secrets),
+                ),
                 tuple,
             ),
         ),
@@ -165,6 +181,12 @@ def _make_pod_manifest(
             gamla.merge,
         )
         if secrets
+        else gamla.identity,
+        _add_secret_provider_volume(secret_provider_class)
+        if secret_provider_class
+        else gamla.identity,
+        gamla.assoc_in(keys=["containers", 0, "resources"], value=resources)
+        if resources
         else gamla.identity,
         gamla.assoc_in(keys=["containers", 0, "command"], value=command)
         if command
@@ -235,27 +257,64 @@ def _make_base_pod_spec(
     }
 
 
-def _add_volume_from_secret(secret: Dict[Text, Text]):
+def _add_volume_and_mount(volume: Dict[str, Any], mount: Dict[str, Any]):
     return gamla.compose_left(
-        gamla.assoc_in(
+        gamla.update_in(
             keys=["containers", 0, "volumeMounts"],
-            value=[
-                {
-                    "name": secret["volume_name"],
-                    "mountPath": secret["mount_path"],
-                    "readOnly": True,
-                },
-            ],
+            func=gamla.compose_left(
+                gamla.concat_with(
+                    [
+                        mount,
+                    ],
+                ),
+                tuple,
+            ),
+            default=[],
         ),
-        gamla.assoc_in(
+        gamla.update_in(
             keys=["volumes"],
-            value=[
-                {
-                    "name": secret["volume_name"],
-                    "secret": {"secretName": secret["secret_name"]},
-                },
-            ],
+            func=gamla.compose_left(
+                gamla.concat_with(
+                    [
+                        volume,
+                    ],
+                ),
+                tuple,
+            ),
+            default=[],
         ),
+    )
+
+
+def _add_volume_from_secret(secret: Dict[Text, Text]):
+    return _add_volume_and_mount(
+        {
+            "name": secret["volume_name"],
+            "secret": {"secretName": secret["secret_name"]},
+        },
+        {
+            "name": secret["volume_name"],
+            "mountPath": secret["mount_path"],
+            "readOnly": True,
+        },
+    )
+
+
+def _add_secret_provider_volume(provider_name: str):
+    return _add_volume_and_mount(
+        {
+            "name": "secrets-store-inline",
+            "csi": {
+                "driver": "secrets-store.csi.k8s.io",
+                "readOnly": True,
+                "volumeAttributes": {"secretProviderClass": provider_name},
+            },
+        },
+        {
+            "name": "secrets-store-inline",
+            "mountPath": "/mnt/secrets-store",
+            "readOnly": True,
+        },
     )
 
 
@@ -280,6 +339,9 @@ def make_job_spec(
         _make_pod_manifest(
             run.get("env_variables"),
             run.get("secrets"),
+            run.get("provide_secrets"),
+            run.get("secret_provider_class"),
+            run.get("resources"),
             run.get("command"),
             run.get("args"),
             extra_arg,
