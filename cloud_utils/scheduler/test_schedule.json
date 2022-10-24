@@ -42,7 +42,7 @@
           "memory": "5Gi"
         }
       },
-      "provide_secrets": [
+      "env_from_secrets": [
         "TEST_SECRET_PROVIDER_ENV"
       ],
       "secret_provider_class": "test-secrets-provider"

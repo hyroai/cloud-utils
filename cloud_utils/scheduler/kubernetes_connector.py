@@ -134,17 +134,27 @@ def create_cron_job(
 def _make_pod_manifest(
     env_variables: List[Dict[Text, Text]],
     secrets: List[Dict[Text, Text]],
-    provide_secrets: List[str],
+    env_from_secrets: List[str],
     secret_provider_class: str,
     resources: Dict[str, Dict[str, str]],
     command: List[Text],
     args: List[Text],
-    extra_arg: str,
+    extra_arg: Optional[str],
     base_pod_spec: Dict[Text, Any],
 ) -> client.V1PodSpec:
-    if secrets:
-        for secret in secrets:
-            _create_secret(secret)
+    """Creates a V1PodSpec object with given parameters
+    env_variables - list of { name, value } dicts to set as environment vars.
+    secrets - deprecated, use env_from_secrets instead.
+    env_from_secrets - list of strings corresponding with Vault keys available to the pod.
+    secret_provider_class - a name of a SecretProviderClass to provide the env_from_secrets.
+    resources - Kubernetes resources, Dict of { requests, limits }.
+    command - Kubernetes command, list of command to run on start.
+    args - Kubernetes args, list of args to run on start.
+    extra_arg - Additional command on top of the commands list. Used as a cmd parameter and not via json file.
+    base_pod_spec - see _make_base_pod_spec function.
+    """
+    for secret in secrets:
+        _create_secret(secret)
     if extra_arg:
         command[-1] += f" {extra_arg}"
     return gamla.pipe(
@@ -171,29 +181,25 @@ def _make_pod_manifest(
                                 },
                             },
                         },
-                    )(provide_secrets),
+                    )(env_from_secrets),
                 ),
                 tuple,
             ),
         ),
-        gamla.compose_left(
-            gamla.juxt(*map(_add_volume_from_secret, secrets)),
-            gamla.merge,
-        )
-        if secrets
-        else gamla.identity,
-        _add_secret_provider_volume(secret_provider_class)
-        if secret_provider_class
-        else gamla.identity,
-        gamla.assoc_in(keys=["containers", 0, "resources"], value=resources)
-        if resources
-        else gamla.identity,
-        gamla.assoc_in(keys=["containers", 0, "command"], value=command)
-        if command
-        else gamla.identity,
-        gamla.assoc_in(keys=["containers", 0, "args"], value=args)
-        if args
-        else gamla.identity,
+        gamla.when(
+            gamla.just(gamla.nonempty(secrets)),
+            gamla.compose_left(
+                gamla.juxt(*map(_add_volume_from_secret, secrets)),
+                gamla.merge,
+            ),
+        ),
+        gamla.when(
+            gamla.just(gamla.nonempty(secret_provider_class)),
+            _add_secret_provider_volume(secret_provider_class),
+        ),
+        gamla.assoc_in(keys=["containers", 0, "resources"], value=resources),
+        gamla.assoc_in(keys=["containers", 0, "command"], value=command),
+        gamla.assoc_in(keys=["containers", 0, "args"], value=args),
     )
 
 
@@ -337,13 +343,13 @@ def make_job_spec(
             run.get("serviceAccountName"),
         ),
         _make_pod_manifest(
-            run.get("env_variables"),
-            run.get("secrets"),
-            run.get("provide_secrets"),
-            run.get("secret_provider_class"),
-            run.get("resources"),
-            run.get("command"),
-            run.get("args"),
+            run.get("env_variables", []),
+            run.get("secrets", []),
+            run.get("env_from_secrets", []),
+            run.get("secret_provider_class", ""),
+            run.get("resources", {}),
+            run.get("command", []),
+            run.get("args", []),
             extra_arg,
         ),
         _make_job_spec(
