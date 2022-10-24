@@ -35,7 +35,17 @@
       "args": [],
       "labels": {
         "testlabel": "some-label"
-      }
+      },
+      "resources": {
+        "requests": {
+          "cpu": "1",
+          "memory": "5Gi"
+        }
+      },
+      "env_from_secrets": [
+        "TEST_SECRET_PROVIDER_ENV"
+      ],
+      "secret_provider_class": "test-secrets-provider"
     }
   }
 ]

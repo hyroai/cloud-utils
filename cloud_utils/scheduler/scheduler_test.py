@@ -24,3 +24,12 @@ def test_run_jobs():
         "extra-arg",
         0,
     )
+
+
+@pytest.mark.skip("ENG-2899")
+def test_empty_scheduler():
+    deploy_cron_jobs.deploy_schedule(
+        "test-tag",
+        True,
+        json.load((pathlib.Path(__file__).parent / "test_schedule_empty.json").open()),
+    )

@@ -1,0 +1,9 @@
+[
+  {
+    "schedule": "0 8 * * *",
+    "run": {
+      "pod_name": "empty-test",
+      "image": "registry.gitlab.com/airbud/analysis"
+    }
+  }
+]
