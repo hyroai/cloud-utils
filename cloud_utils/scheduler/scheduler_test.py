@@ -6,6 +6,7 @@ import pytest
 from cloud_utils.scheduler import deploy_cron_jobs, run_jobs
 
 
+@pytest.mark.skip("ENG-2899")
 def test_scheduler():
     deploy_cron_jobs.deploy_schedule(
         "test-tag",
@@ -25,6 +26,7 @@ def test_run_jobs():
     )
 
 
+@pytest.mark.skip("ENG-2899")
 def test_empty_scheduler():
     deploy_cron_jobs.deploy_schedule(
         "test-tag",
