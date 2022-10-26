@@ -136,6 +136,7 @@ def _make_pod_manifest(
     secrets: List[Dict[Text, Text]],
     env_from_secrets: List[str],
     secret_provider_class: str,
+    secrets_name_prefix: str,
     resources: Dict[str, Dict[str, str]],
     command: List[Text],
     args: List[Text],
@@ -176,7 +177,7 @@ def _make_pod_manifest(
                             "name": env_var,
                             "valueFrom": {
                                 "secretKeyRef": {
-                                    "name": f"{utils.to_kebab_case(env_var)}-vault-secret",
+                                    "name": f"{secrets_name_prefix}{utils.to_kebab_case(env_var)}-vault-secret",
                                     "key": env_var,
                                 },
                             },
@@ -347,6 +348,7 @@ def make_job_spec(
             run.get("secrets", []),
             run.get("env_from_secrets", []),
             run.get("secret_provider_class", ""),
+            run.get("secrets_name_prefix", ""),
             run.get("resources", {}),
             run.get("command", []),
             run.get("args", []),
