@@ -102,16 +102,16 @@ def create_cron_job(
     dry_run: bool,
     job_spec: client.V1JobSpec,
 ) -> Text:
-    cron_job = client.V1beta1CronJob(
-        api_version="batch/v1beta1",
+    cron_job = client.V1CronJob(
+        api_version="batch/v1",
         kind="CronJob",
         metadata=client.V1ObjectMeta(name=_cronjob_name(pod_name)),
-        spec=client.V1beta1CronJobSpec(
+        spec=client.V1CronJobSpec(
             schedule=schedule,
             concurrency_policy="Forbid",
             successful_jobs_history_limit=1,
             failed_jobs_history_limit=1,
-            job_template=client.V1beta1JobTemplateSpec(
+            job_template=client.V1JobTemplateSpec(
                 spec=job_spec,
             ),
         ),
@@ -119,12 +119,12 @@ def create_cron_job(
     options = {"namespace": "default", "body": cron_job, "pretty": "true"}
     _set_dry_run(options, dry_run)
     try:
-        api_response = client.BatchV1beta1Api().patch_namespaced_cron_job(
+        api_response = client.BatchV1Api().patch_namespaced_cron_job(
             **gamla.add_key_value("name", _cronjob_name(pod_name))(options)
         )
     except rest.ApiException:
         logging.info(f"CronJob {options.get('name')} doesn't exist, creating...")
-        api_response = client.BatchV1beta1Api().create_namespaced_cron_job(**options)
+        api_response = client.BatchV1Api().create_namespaced_cron_job(**options)
     logging.info(f"CronJob updated: {api_response}.")
 
     return pod_name
