@@ -212,7 +212,7 @@ def _make_job_spec(
 ) -> client.V1JobSpec:
     return client.V1JobSpec(
         ttl_seconds_after_finished=60 * 60 * 24,  # Keep job for 24 hours
-        active_deadline_seconds=60 * 60 * 3,  # Limit job runtime to 3 hours
+        active_deadline_seconds=60 * 60 * 4,  # Limit job runtime to 3 hours
         backoff_limit=1,
         template=client.V1PodTemplateSpec(
             metadata=client.V1ObjectMeta(labels=labels, annotations=annotations),
