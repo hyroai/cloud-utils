@@ -68,6 +68,7 @@ def _wait_for_job_completion(
 
 @gamla.curry
 def create_job(
+    namespace: str,
     pod_name: str,
     dry_run: bool,
     wait_minutes_for_completion: int,
@@ -80,7 +81,7 @@ def create_job(
         metadata=client.V1ObjectMeta(name=job_name),
         spec=job_spec,
     )
-    options = {"namespace": "default", "pretty": "true"}
+    options = {"namespace": namespace, "pretty": "true"}
     _set_dry_run(options, dry_run)
     api_response = client.BatchV1Api().create_namespaced_job(
         **gamla.add_key_value("body", job)(options)
@@ -97,6 +98,7 @@ def create_job(
 
 @gamla.curry
 def create_cron_job(
+    namespace: str,
     pod_name: str,
     schedule: str,
     dry_run: bool,
@@ -116,7 +118,7 @@ def create_cron_job(
             ),
         ),
     )
-    options = {"namespace": "default", "body": cron_job, "pretty": "true"}
+    options = {"namespace": namespace, "body": cron_job, "pretty": "true"}
     _set_dry_run(options, dry_run)
     try:
         api_response = client.BatchV1Api().patch_namespaced_cron_job(

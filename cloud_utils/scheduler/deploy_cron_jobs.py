@@ -15,6 +15,7 @@ def deploy_schedule(tag: str, dry_run: bool, job_configs: Iterable[Dict]):
         gamla.pipe(
             kubernetes_connector.make_job_spec(run, tag, None),
             kubernetes_connector.create_cron_job(
+                run.get("namespace", "default"),
                 run["pod_name"],
                 config["schedule"],
                 dry_run,
