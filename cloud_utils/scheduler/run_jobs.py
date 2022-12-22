@@ -22,6 +22,7 @@ def deploy_jobs(
         gamla.pipe(
             kubernetes_connector.make_job_spec(run, tag, extra_arg),
             kubernetes_connector.create_job(
+                run.get("namespace", "default"),
                 run["pod_name"],
                 dry_run,
                 wait_minutes_for_completion,
