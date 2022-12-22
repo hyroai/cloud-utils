@@ -1,3 +1,5 @@
+import functools
+import ssl
 from typing import Any, Callable, Dict, Iterable, Text, Tuple
 
 import gamla
@@ -9,6 +11,27 @@ DESCENDING = pymongo.DESCENDING
 
 def client(mongodb_uri: str, **kwargs) -> pymongo.MongoClient:
     return pymongo.MongoClient(mongodb_uri, **kwargs)
+
+
+def collection_from_db(
+    connection_string: str,
+    database_name: str,
+) -> Callable[[str], pymongo.collection.Collection]:
+    @functools.lru_cache
+    def collection_from_db(collection_name: str) -> pymongo.collection.Collection:
+        return (
+            client(
+                connection_string,
+                connect=False,
+                ssl_cert_reqs=ssl.CERT_NONE,
+                connectTimeoutMS=120_000,
+                maxPoolSize=200,
+            )
+            .get_database(database_name)
+            .get_collection(collection_name)
+        )
+
+    return collection_from_db
 
 
 @gamla.curry
