@@ -58,10 +58,20 @@ def _wait_for_job_completion(
         job = client.BatchV1Api().read_namespaced_job_status(
             **gamla.add_key_value("name", name)(options)
         )
+
         if job.status.succeeded:
             return
         if job.status.failed:
-            raise Exception("Job failed")
+            job_pods = client.CoreV1Api().list_namespaced_pod(
+                **gamla.add_key_value("label_selector", f"job-name={job.metadata.name}")(options)
+            )
+            logs = client.CoreV1Api().read_namespaced_pod_log(
+                job_pods.items[0].metadata.name,
+                options.get("namespace"),
+                tail_lines=200,
+            )
+            logging.error(logs)
+            raise Exception(f"Job failed {logs}")
         time.sleep(60)
     raise Exception(f"Job wasn't completed within {wait_minutes_for_completion} min")
 
