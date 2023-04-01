@@ -61,9 +61,14 @@ def _wait_for_job_completion(
 
         if job.status.succeeded:
             return
-        if job.status.failed and job.status.failed > 1:  # We have one retry so we want to wait for the 2nd failure
+        if (
+            job.status.failed and job.status.failed > 1
+        ):  # We have one retry, so we want to wait for the 2nd failure.
             job_pods = client.CoreV1Api().list_namespaced_pod(
-                **gamla.add_key_value("label_selector", f"job-name={job.metadata.name}")(options)
+                **gamla.add_key_value(
+                    "label_selector",
+                    f"job-name={job.metadata.name}",
+                )(options)
             )
             logs = client.CoreV1Api().read_namespaced_pod_log(
                 job_pods.items[0].metadata.name,
