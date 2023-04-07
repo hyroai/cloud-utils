@@ -2,9 +2,9 @@
   {
     "schedule": "0 8 * * *",
     "run": {
-      "namespace": "dev-nlu-engine",
+      "namespace": "dev-assistants",
       "pod_name": "insight-reports-test",
-      "image": "registry.gitlab.com/airbud/analysis",
+      "image": "hyroai/helm-kubectl-gamla",
       "env_variables": [
         {
           "name": "GOOGLE_APPLICATION_CREDENTIALS",
@@ -19,19 +19,10 @@
           "value": "TOKEN"
         }
       ],
-      "secrets": [
-        {
-          "data": {
-            "credentials.json": ""
-          },
-          "mount_path": "/var/secrets/gcp",
-          "secret_name": "prod-jupyter-gcp-credentials",
-          "volume_name": "gcp-credentials"
-        }
-      ],
       "command": [
-        "python",
-        "default_insight_reports.py"
+        "python3",
+        "-c",
+        "import time; print('start'); time.sleep(10); print('end'); raise Exception('Script failed')"
       ],
       "args": [],
       "labels": {
@@ -44,9 +35,10 @@
         }
       },
       "env_from_secrets": [
-        "TEST_SECRET_PROVIDER_ENV"
+        "ANALYSIS_MONGODB_URI"
       ],
-      "secret_provider_class": "test-secrets-provider"
+      "serviceAccountName": "dev-assistants",
+      "secret_provider_class": "dev-assistants-env"
     }
   }
 ]
