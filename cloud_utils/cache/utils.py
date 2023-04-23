@@ -174,7 +174,7 @@ def persistent_cache(
     def decorator(func):
         @functools.wraps(func)
         async def wrapper_async(*args, **kwargs):
-            key = gamla.make_call_key(args, kwargs)
+            key = gamla.compute_stable_json_hash(gamla.make_call_key(args, kwargs))
             try:
                 return get_cache_item(key)
             except KeyError:
@@ -184,7 +184,7 @@ def persistent_cache(
 
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
-            key = gamla.make_call_key(args, kwargs)
+            key = gamla.compute_stable_json_hash(gamla.make_call_key(args, kwargs))
             try:
                 return get_cache_item(key)
             except KeyError:
