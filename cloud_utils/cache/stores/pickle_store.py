@@ -1,7 +1,33 @@
-_MAX_CHAGES_TO_TRIGGER_FLUSH = 10
+import logging
+import pathlib
+import pickle
+import timeit
+from typing import Any, Callable, Dict, Tuple
+
+import gamla
+
+_LOCAL_CACHE_PATH: pathlib.Path = pathlib.Path.home().joinpath(".nlu_cache")
+
+_local_cache_filename = gamla.wrap_str("{}.pickle")
 
 
-def make_store(name: str) -> Tuple[Callable, Callable]:
+_make_path = gamla.compose(_LOCAL_CACHE_PATH.joinpath, _local_cache_filename)
+
+
+@gamla.timeit
+def _load_cache_from_local(cache_name: str) -> Dict[Tuple, Any]:
+    with _make_path(cache_name).open("rb") as local_cache_file:
+        return pickle.load(local_cache_file)
+
+
+def _save_cache_locally(cache_name: str, cache: Dict[Tuple, Any]):
+    _LOCAL_CACHE_PATH.mkdir(parents=True, exist_ok=True)
+    with _make_path(cache_name).open("wb") as local_cache_file:
+        pickle.dump(cache, local_cache_file)
+    logging.info(f"Saved {len(cache)} cache items locally for {cache_name}.")
+
+
+def make_store(name: str, num_misses_to_trigger_sync: int) -> Tuple[Callable, Callable]:
     change_count = 0
     sync_running = False
     sync_start = 0.0
@@ -49,5 +75,7 @@ def make_store(name: str) -> Tuple[Callable, Callable]:
 
 
 make_async_store = gamla.compose_left(
-    make_store, gamla.map(gamla.wrap_awaitable), tuple
+    make_store,
+    gamla.map(gamla.wrap_awaitable),
+    tuple,
 )

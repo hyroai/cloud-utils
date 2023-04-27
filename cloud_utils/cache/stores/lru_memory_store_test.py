@@ -1,6 +1,6 @@
 import pytest
 
-from cloud_utils.cache import lru_memory_store
+from cloud_utils.cache.store import lru_memory_store
 
 
 def test_store_bounded_lru():

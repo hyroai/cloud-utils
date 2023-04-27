@@ -1,4 +1,5 @@
 import collections
+import logging
 
 import gamla
 
@@ -13,7 +14,9 @@ def make_store(max_size: int):
         if max_size and len(store) > max_size:
             store.popitem(last=False)  # Pop least recently used key.
 
-        print("set", key, value, dict(store))
+        logging.info(
+            f"Setting {key} with {value} in the lru memory store.",
+        )
 
     def get_item(key: str):
         item = store[key]
@@ -24,5 +27,7 @@ def make_store(max_size: int):
 
 
 make_async_store = gamla.compose_left(
-    make_store, gamla.map(gamla.wrap_awaitable), tuple
+    make_store,
+    gamla.map(gamla.wrap_awaitable),
+    tuple,
 )

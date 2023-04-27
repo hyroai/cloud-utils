@@ -3,7 +3,8 @@ import collections
 import functools
 
 import gamla
-from cloud_utils.cache import utils
+
+from cloud_utils.cache.stores import lru_memory_store
 
 
 def make_async_store():
@@ -24,14 +25,14 @@ class _CalledTooManyTimes(Exception):
 
 def assert_max_called(n: int):
     def decorator(f):
-        _COUNT = 0
+        count = 0
         if asyncio.iscoroutinefunction(f):
 
             @functools.wraps(f)
             async def wrapped(*args, **kwargs):
-                nonlocal _COUNT
-                _COUNT += 1
-                if _COUNT > n:
+                nonlocal count
+                count += 1
+                if count > n:
                     raise _CalledTooManyTimes()
                 return await f(*args, **kwargs)
 
@@ -39,10 +40,9 @@ def assert_max_called(n: int):
 
         @functools.wraps(f)
         def wrapped(*args, **kwargs):
-            nonlocal _COUNT
-            _COUNT += 1
-            print("count", _COUNT)
-            if _COUNT > n:
+            nonlocal count
+            count += 1
+            if count > n:
                 raise _CalledTooManyTimes()
             return f(*args, **kwargs)
 
@@ -51,14 +51,11 @@ def assert_max_called(n: int):
     return decorator
 
 
-from cloud_utils.cache import lru_memory_store
-
-
 def test_cache():
 
     get_item, set_item = lru_memory_store.make_store(2)
 
-    @utils.persistent_cache(get_item, set_item, utils.make_key("test_cache"))
+    @gamla.persistent_cache(get_item, set_item, gamla.make_key("test_cache"))
     @assert_max_called(2)
     def f(a: int, b: int, c: int, d: int):
         return a + b + c + d
@@ -72,7 +69,7 @@ async def test_cache_async():
 
     get_item, set_item = lru_memory_store.make_async_store(2)
 
-    @utils.persistent_cache(get_item, set_item, utils.make_key("test_cache"))
+    @gamla.persistent_cache(get_item, set_item, gamla.make_key("test_cache"))
     @assert_max_called(2)
     async def f(a: int, b: int):
         await asyncio.sleep(0.001)
