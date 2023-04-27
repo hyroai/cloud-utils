@@ -123,15 +123,6 @@ def _save_cache_locally(cache_name: str, cache: Dict[Tuple, Any]):
     logging.info(f"Saved {len(cache)} cache items locally for {cache_name}.")
 
 
-def load_xml_to_dict(xml_file: str) -> Dict:
-    local_path = _LOCAL_CACHE_PATH.joinpath(xml_file)
-    if not local_path.exists():
-        storage.download_blob_to_file("hyro-bot-data", xml_file, local_path)
-    zip_xml = zipfile.ZipFile(local_path)
-    xml_string = zip_xml.open(zip_xml.namelist()[0]).read()
-    return xmltodict.parse(xml_string, attr_prefix="")
-
-
 def make_file_store(
     name: str,
     num_misses_to_trigger_sync: int,

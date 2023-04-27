@@ -1,3 +1,4 @@
+import asyncio
 import datetime
 import functools
 import inspect
@@ -141,59 +142,90 @@ def auto_updating_cache(
     return inner
 
 
+_hashed_call_key = gamla.compose_left(
+    gamla.make_call_key, gamla.compute_stable_json_hash
+)
+
+from typing import Any
+
+
+def ignore_first(f):
+    if asyncio.iscoroutinefunction(f):
+
+        async def ignore_first(_, *args, **kwargs):
+            return await f(*args, **kwargs)
+
+        return ignore_first
+
+    def ignore_first(_, *args, **kwargs):
+        return f(*args, **kwargs)
+
+    return ignore_first
+
+
+def make_key(name: str):
+    return gamla.compose_left(
+        lambda *args, **kwargs: (args, kwargs),
+        gamla.star(gamla.make_call_key),
+        gamla.compute_stable_json_hash,
+        gamla.wrap_str(name + ":{}"),
+    )
+
+
 def persistent_cache(
-    redis_client: redis.Redis,
-    name: str,
-    environment: str,
-    is_external: bool,
-    num_misses_to_trigger_sync: int,
+    get_item: Callable[[str], Any],
+    set_item: Callable[[str, Any], None],
+    make_key: Callable,
 ) -> Callable:
 
     maxsize = 10_000
 
-    def simple_decorator(func):
-        if inspect.iscoroutinefunction(func):
-            return async_lru.alru_cache(maxsize=maxsize)(func)
-        return functools.lru_cache(maxsize=maxsize)(func)
+    # def simple_decorator(func):
+    #     if inspect.iscoroutinefunction(func):
+    #         return async_lru.alru_cache(maxsize=maxsize)(func)
+    #     return functools.lru_cache(maxsize=maxsize)(func)
+    #
+    # if in_memory:
+    #     return simple_decorator
 
-    if not is_external and environment in ("production", "staging", "development"):
-        return simple_decorator
+    def decorator(f):
 
-    if environment in ("production", "staging", "development"):
-        get_cache_item, set_cache_item = redis_utils.make_redis_store(
-            redis_client,
-            environment,
-            name,
+        print(f, asyncio.iscoroutinefunction(f))
+        print(get_item, asyncio.iscoroutinefunction(get_item))
+        print(set_item, asyncio.iscoroutinefunction(set_item))
+
+        return gamla.try_and_excepts(
+            KeyError,
+            gamla.compose_left(
+                gamla.juxt(ignore_first(make_key), ignore_first(f)),
+                gamla.side_effect(gamla.star(set_item)),
+                gamla.second,
+            ),
+            gamla.compose_left(make_key, get_item),
         )
-    else:
-        get_cache_item, set_cache_item = file_store.make_file_store(
-            name,
-            num_misses_to_trigger_sync,
-        )
-
-    def decorator(func):
-        @functools.wraps(func)
-        async def wrapper_async(*args, **kwargs):
-            key = gamla.make_call_key(args, kwargs)
-            try:
-                return get_cache_item(key)
-            except KeyError:
-                result = await func(*args, **kwargs)
-                set_cache_item(key, result)
-                return result
-
-        @functools.wraps(func)
-        def wrapper(*args, **kwargs):
-            key = gamla.make_call_key(args, kwargs)
-            try:
-                return get_cache_item(key)
-            except KeyError:
-                result = func(*args, **kwargs)
-                set_cache_item(key, result)
-                return result
-
-        if inspect.iscoroutinefunction(func):
-            return wrapper_async
-        return wrapper
+        #
+        # @functools.wraps(f)
+        # async def wrapper_async(*args, **kwargs):
+        #     key = _hashed_call_key(args, kwargs)
+        #     try:
+        #         return await get_cache_item(key)
+        #     except KeyError:
+        #         result = await f(*args, **kwargs)
+        #         await set_cache_item(key, result)
+        #         return result
+        #
+        # @functools.wraps(f)
+        # def wrapper(*args, **kwargs):
+        #     key = _hashed_call_key(args, kwargs)
+        #     try:
+        #         return get_cache_item(key)
+        #     except KeyError:
+        #         result = f(*args, **kwargs)
+        #         set_cache_item(key, result)
+        #         return result
+        #
+        # if gamla.any_is_async([get_cache_item, set_cache_item, f]):
+        #     return wrapper_async
+        # return wrapper
 
     return decorator
