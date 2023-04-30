@@ -1,9 +1,8 @@
 import json
 import logging
-from typing import Callable, Tuple, Union
+from typing import Callable, Tuple
 
 import redis
-import redis.asyncio as redis_async
 
 
 def _cache_key_name(cache_name: str, key: Tuple) -> str:
@@ -11,7 +10,7 @@ def _cache_key_name(cache_name: str, key: Tuple) -> str:
 
 
 def make_store(
-    redis_client: Union[redis.Redis, redis_async.Redis],
+    redis_client: redis.Redis,
     name: str,
     ttl: int = 0,
 ) -> Tuple[Callable, Callable]:
