@@ -135,3 +135,7 @@ def auto_updating_cache(
         )
 
     return inner
+
+
+def log_initialized_cache(name: str):
+    logging.info(f"initializing cache for {name}")

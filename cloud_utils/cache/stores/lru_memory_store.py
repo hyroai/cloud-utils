@@ -3,9 +3,11 @@ import logging
 
 import gamla
 
+from cloud_utils.cache import utils
 
-def make_store(max_size: int):
 
+def make_store(name: str, max_size: int):
+    utils.log_initialized_cache(name)
     store = collections.OrderedDict()
 
     def set_item(key: str, value):

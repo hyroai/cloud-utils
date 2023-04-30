@@ -1,71 +1,66 @@
 import logging
-import pathlib
+import os
 import pickle
-import timeit
+import time
 from typing import Any, Callable, Dict, Tuple
 
 import gamla
 
-_LOCAL_CACHE_PATH: pathlib.Path = pathlib.Path.home().joinpath(".nlu_cache")
 
-_local_cache_filename = gamla.wrap_str("{}.pickle")
-
-
-_make_path = gamla.compose(_LOCAL_CACHE_PATH.joinpath, _local_cache_filename)
+def _local_cache_path(cache_name: str, path: str):
+    return os.path.join(path, f"{cache_name}.pickle")
 
 
 @gamla.timeit
-def _load_cache_from_local(cache_name: str) -> Dict[Tuple, Any]:
-    with _make_path(cache_name).open("rb") as local_cache_file:
+def _load_cache_from_local(cache_name: str, path: str) -> Dict[Tuple, Any]:
+    with open(_local_cache_path(cache_name, path), "rb") as local_cache_file:
         return pickle.load(local_cache_file)
 
 
-def _save_cache_locally(cache_name: str, cache: Dict[Tuple, Any]):
-    _LOCAL_CACHE_PATH.mkdir(parents=True, exist_ok=True)
-    with _make_path(cache_name).open("wb") as local_cache_file:
+def _save_cache_locally(cache_name: str, path: str, cache: Dict[Tuple, Any]):
+    if not os.path.exists(path):
+        os.makedirs(path)
+    local_path = _local_cache_path(cache_name, path)
+    with open(local_path, "wb") as local_cache_file:
         pickle.dump(cache, local_cache_file)
     logging.info(f"Saved {len(cache)} cache items locally for {cache_name}.")
 
 
-def make_store(name: str, num_misses_to_trigger_sync: int) -> Tuple[Callable, Callable]:
+def make_store(name: str, cache_path: str) -> Tuple[Callable, Callable]:
     change_count = 0
-    sync_running = False
-    sync_start = 0.0
-
     # Initialize cache.
     try:
-        cache = _load_cache_from_local(name)
+        cache = _load_cache_from_local(name, cache_path)
         logging.info(f"Loaded {len(cache):,} cache items from local file for {name}.")
     except (OSError, IOError, EOFError, pickle.UnpicklingError) as err:
         logging.info(
-            f"Cache {name} does not exist or is invalid. Initializing an empty cache. Error: {err}.",
+            f"Cache {name} does not exist or is invalid. Initializing an empty cache.",
         )
+        logging.error(err)
         cache = {}
 
     def get_item(key: Tuple):
         return cache[key]
 
     def set_item(key: Tuple, value):
-        nonlocal change_count, sync_running, sync_start
+        nonlocal change_count
 
         change_count += 1
         cache[key] = value
 
-        if change_count >= num_misses_to_trigger_sync and not sync_running:
+        if change_count >= 10:
             logging.info(
-                f"More than {num_misses_to_trigger_sync:,} keys changed in cache {name}. Syncing with local file.",
+                f"More than 10 keys changed in cache {name}. Syncing with local file.",
             )
 
-            sync_running = True
-            sync_start = timeit.default_timer()
-
             try:
-                _save_cache_locally(name, cache)
-                sync_running = False
+                start_time = time.time()
+                _save_cache_locally(name, cache_path, cache)
+                end_time = time.time()
                 logging.info(
-                    f"Synced cache {name} to local file in {timeit.default_timer() - sync_start}.",
+                    f"Synced cache {name} to local file in {start_time - end_time} seconds.",
                 )
-                change_count -= num_misses_to_trigger_sync
+                change_count -= 10
             except (OSError, IOError, EOFError) as exception:
                 logging.error(
                     f"Could not sync {name} with local file. Error: {exception}.",

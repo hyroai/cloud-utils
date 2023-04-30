@@ -1,10 +1,10 @@
 import pytest
 
-from cloud_utils.cache.store import lru_memory_store
+from cloud_utils.cache.stores import lru_memory_store
 
 
 def test_store_bounded_lru():
-    get_item, set_item = lru_memory_store.make_store(1)
+    get_item, set_item = lru_memory_store.make_store("my_store", 1)
 
     set_item("1", 1)
     set_item("2", 2)
@@ -20,7 +20,7 @@ def test_store_bounded_lru():
 
 
 def test_store_unbounded():
-    get_item, set_item = lru_memory_store.make_store(0)
+    get_item, set_item = lru_memory_store.make_store("unbound_store", 0)
 
     set_item("1", 1)
     set_item("2", 2)
