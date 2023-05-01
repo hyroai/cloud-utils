@@ -4,7 +4,7 @@ import functools
 
 import gamla
 
-from cloud_utils.cache.stores import lru_memory_store
+from cloud_utils.cache.stores import lru_memory
 
 
 def make_async_store():
@@ -53,7 +53,7 @@ def assert_max_called(n: int):
 
 def test_cache():
 
-    get_item, set_item = lru_memory_store.make_store("some store", 2)
+    get_item, set_item = lru_memory.make_store("some store", 2)
 
     @gamla.persistent_cache(
         get_item,
@@ -71,7 +71,7 @@ def test_cache():
 
 async def test_cache_async():
 
-    get_item, set_item = lru_memory_store.make_async_store("some other store", 2)
+    get_item, set_item = lru_memory.make_async_store("some other store", 2)
 
     @gamla.persistent_cache(
         get_item,

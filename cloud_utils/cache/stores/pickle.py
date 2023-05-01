@@ -58,7 +58,7 @@ def make_store(name: str, cache_path: str) -> Tuple[Callable, Callable]:
                 _save_cache_locally(name, cache_path, cache)
                 end_time = time.time()
                 logging.info(
-                    f"Synced cache {name} to local file in {start_time - end_time} seconds.",
+                    f"Synced cache {name} to local file in {end_time - start_time} seconds.",
                 )
                 change_count -= 10
             except (OSError, IOError, EOFError) as exception:
