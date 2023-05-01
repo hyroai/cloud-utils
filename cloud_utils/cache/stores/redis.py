@@ -1,4 +1,3 @@
-import functools
 import json
 import logging
 from typing import Callable, Tuple
@@ -9,7 +8,6 @@ from cloud_utils.cache import utils
 
 
 def redis_error_handler(f):
-    @functools.wraps(f)
     async def wrapper(*args, **kwargs):
         try:
             await f(*args, **kwargs)
