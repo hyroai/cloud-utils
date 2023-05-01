@@ -139,3 +139,7 @@ def auto_updating_cache(
 
 def log_initialized_cache(cache_type: str, name: str):
     logging.info(f"initializing {cache_type} cache for {name}")
+
+
+def cache_key_name(cache_name: str, key: str) -> str:
+    return f"{cache_name}:{json.dumps(key)}"

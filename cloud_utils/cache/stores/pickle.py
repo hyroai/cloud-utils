@@ -41,14 +41,14 @@ def make_store(name: str, cache_path: str) -> Tuple[Callable, Callable]:
         logging.error(err)
         cache = {}
 
-    def get_item(key: Tuple):
-        return cache[key]
+    def get_item(key: str):
+        return cache[utils.cache_key_name(name, key)]
 
-    def set_item(key: Tuple, value):
+    def set_item(key: str, value):
         nonlocal change_count
 
         change_count += 1
-        cache[key] = value
+        cache[utils.cache_key_name(name, key)] = value
 
         if change_count >= 10:
             logging.info(

@@ -11,18 +11,20 @@ def make_store(name: str, max_size: int):
     store = collections.OrderedDict()
 
     def set_item(key: str, value):
-        store[key] = value
+        cache_key = utils.cache_key_name(name, key)
+        store[cache_key] = value
 
-        if max_size and len(store) > max_size:
+        if max_size and len(store) > max_size and max_size != 0:
             store.popitem(last=False)  # Pop least recently used key.
 
         logging.info(
-            f"Setting {key} with {value} in the lru memory store.",
+            f"Setting {cache_key} with {value} in the lru memory store.",
         )
 
     def get_item(key: str):
-        item = store[key]
-        store[key] = item  # Touch key, for LRU.
+        cache_key = utils.cache_key_name(name, key)
+        item = store[cache_key]
+        store[cache_key] = item  # Touch key, for LRU.
         return item
 
     return get_item, set_item
