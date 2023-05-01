@@ -7,7 +7,7 @@ from cloud_utils.cache import utils
 
 
 def make_store(name: str, max_size: int):
-    utils.log_initialized_cache(name)
+    utils.log_initialized_cache("lru", name)
     store = collections.OrderedDict()
 
     def set_item(key: str, value):

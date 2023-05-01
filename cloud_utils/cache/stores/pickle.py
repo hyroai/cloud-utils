@@ -1,10 +1,11 @@
 import logging
 import os
 import pickle
-import time
 from typing import Any, Callable, Dict, Tuple
 
 import gamla
+
+from cloud_utils.cache import utils
 
 
 def _local_cache_path(cache_name: str, path: str):
@@ -28,6 +29,7 @@ def _save_cache_locally(cache_name: str, path: str, cache: Dict[Tuple, Any]):
 
 def make_store(name: str, cache_path: str) -> Tuple[Callable, Callable]:
     change_count = 0
+    utils.log_initialized_cache("pickle", name)
     # Initialize cache.
     try:
         cache = _load_cache_from_local(name, cache_path)
@@ -54,11 +56,9 @@ def make_store(name: str, cache_path: str) -> Tuple[Callable, Callable]:
             )
 
             try:
-                start_time = time.time()
                 _save_cache_locally(name, cache_path, cache)
-                end_time = time.time()
                 logging.info(
-                    f"Synced cache {name} to local file in {end_time - start_time} seconds.",
+                    f"Synced cache {name} to local file",
                 )
                 change_count -= 10
             except (OSError, IOError, EOFError) as exception:

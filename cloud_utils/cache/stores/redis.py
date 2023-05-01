@@ -1,8 +1,11 @@
+import functools
 import json
 import logging
 from typing import Callable, Tuple
 
-import redis
+import redis.asyncio as redis
+
+from cloud_utils.cache import utils
 
 
 def _cache_key_name(cache_name: str, key: Tuple) -> str:
@@ -10,16 +13,17 @@ def _cache_key_name(cache_name: str, key: Tuple) -> str:
 
 
 def redis_error_handler(f):
-    def call_f(args):
+    @functools.wraps(f)
+    async def wrapper(*args, **kwargs):
         try:
-            f(args)
+            await f(*args, **kwargs)
         except (
             redis.exceptions.ConnectionError,
             redis.exceptions.TimeoutError,
         ) as err:  # Could not connect to redis. This could be temporary. Ignore.
             logging.error(f"Got {str(err)} error")
 
-    return call_f
+    return wrapper
 
 
 def make_store(
@@ -27,8 +31,10 @@ def make_store(
     name: str,
     ttl,
 ) -> Tuple[Callable, Callable]:
-    def get_item(key: Tuple):
-        result = redis_error_handler(redis_client.get(_cache_key_name(name, key)))
+    utils.log_initialized_cache("redis", name)
+
+    async def get_item(key: Tuple):
+        result = await redis_error_handler(redis_client.get(_cache_key_name(name, key)))
         if result is None:
             logging.error(f"{key} is not in {name}")
             raise KeyError
@@ -38,13 +44,13 @@ def make_store(
             logging.error(f"Malformed key detected: {key} in {name}.")
             raise KeyError
 
-    def set_item(key: Tuple, value):
+    async def set_item(key: Tuple, value):
         if ttl == 0:
-            redis_error_handler(
+            await redis_error_handler(
                 redis_client.set(_cache_key_name(name, key), json.dumps(value)),
             )
         else:
-            redis_error_handler(
+            await redis_error_handler(
                 redis_client.setex(
                     _cache_key_name(name, key),
                     ttl,
