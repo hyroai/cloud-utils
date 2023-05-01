@@ -14,8 +14,8 @@ def redis_error_handler(f):
         try:
             await f(*args, **kwargs)
         except (
-            redis.exceptions.ConnectionError,
-            redis.exceptions.TimeoutError,
+            redis.ConnectionError,
+            redis.TimeoutError,
         ) as err:  # Could not connect to redis. This could be temporary. Ignore.
             logging.error(f"Got {str(err)} error")
 
@@ -30,30 +30,29 @@ def make_store(
     utils.log_initialized_cache("redis", name)
 
     async def get_item(key: str):
+        cache_key = utils.cache_key_name(name, key)
         result = await redis_error_handler(
-            redis_client.get(utils.cache_key_name(name, key)),
-        )
+            redis_client.get,
+        )(cache_key)
         if result is None:
-            logging.error(f"{key} is not in {name}")
+            logging.error(f"{cache_key} is not in {name}")
             raise KeyError
         try:
             return json.loads(result)
         except ValueError:  # Key contents are malformed (will force key to update).
-            logging.error(f"Malformed key detected: {key} in {name}.")
+            logging.error(f"Malformed key detected: {cache_key} in {name}.")
             raise KeyError
 
     async def set_item(key: str, value):
         if ttl == 0:
             await redis_error_handler(
-                redis_client.set(utils.cache_key_name(name, key), json.dumps(value)),
-            )
+                redis_client.set,
+            )(utils.cache_key_name(name, key), json.dumps(value))
         else:
-            await redis_error_handler(
-                redis_client.setex(
-                    utils.cache_key_name(name, key),
-                    ttl,
-                    json.dumps(value),
-                ),
+            await redis_error_handler(redis_client.setex)(
+                utils.cache_key_name(name, key),
+                ttl,
+                json.dumps(value),
             )
 
     return get_item, set_item
