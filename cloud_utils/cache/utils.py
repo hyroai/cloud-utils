@@ -142,4 +142,4 @@ def log_initialized_cache(cache_type: str, name: str):
 
 
 def cache_key_name(cache_name: str, key: str) -> str:
-    return f"{cache_name}:{json.dumps(key)}"
+    return f"{cache_name}:{key}"

@@ -10,7 +10,8 @@ from cloud_utils.cache import utils
 def redis_error_handler(f):
     async def wrapper(*args, **kwargs):
         try:
-            await f(*args, **kwargs)
+            result = await f(*args, **kwargs)
+            return result
         except (
             redis.ConnectionError,
             redis.TimeoutError,
@@ -29,16 +30,14 @@ def make_store(
 
     async def get_item(key: str):
         cache_key = utils.cache_key_name(name, key)
-        result = await redis_error_handler(
-            redis_client.get,
-        )(cache_key)
+        result = await redis_error_handler(redis_client.get)(cache_key)
         if result is None:
-            logging.error(f"{cache_key} is not in {name}")
+            logging.error(f"{key} is not in {name}")
             raise KeyError
         try:
             return json.loads(result)
         except ValueError:  # Key contents are malformed (will force key to update).
-            logging.error(f"Malformed key detected: {cache_key} in {name}.")
+            logging.error(f"Malformed key detected: {key} in {name}.")
             raise KeyError
 
     async def set_item(key: str, value):
