@@ -6,7 +6,6 @@ import gamla
 from cloud_utils.cache import utils
 
 
-@gamla.curry
 def make_store(max_size: int, name: str):
     utils.log_initialized_cache("lru", name)
     store = collections.OrderedDict()

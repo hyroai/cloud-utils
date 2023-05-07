@@ -2,7 +2,6 @@ import json
 import logging
 from typing import Callable, Tuple
 
-import gamla
 import redis.asyncio as redis
 
 from cloud_utils.cache import utils
@@ -22,7 +21,6 @@ def redis_error_handler(f):
     return wrapper
 
 
-@gamla.curry
 def make_store(
     redis_client: redis.Redis,
     ttl: int,
