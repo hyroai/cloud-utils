@@ -27,7 +27,8 @@ def _save_cache_locally(cache_name: str, path: str, cache: Dict[Tuple, Any]):
     logging.info(f"Saved {len(cache)} cache items locally for {cache_name}.")
 
 
-def make_store(name: str, cache_path: str) -> Tuple[Callable, Callable]:
+@gamla.curry
+def make_store(cache_path: str, name: str) -> Tuple[Callable, Callable]:
     change_count = 0
     utils.log_initialized_cache("pickle", name)
     # Initialize cache.

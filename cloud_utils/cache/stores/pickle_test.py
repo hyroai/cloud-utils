@@ -2,7 +2,7 @@ from cloud_utils.cache.stores import pickle
 
 
 def test_pickle_store(pickle_file):
-    get_item, set_item = pickle.make_store("test-store", pickle_file)
+    get_item, set_item = pickle.make_store(pickle_file, "test-store")
 
     set_item("1", 1)
     set_item("2", 2)
@@ -13,7 +13,7 @@ def test_pickle_store(pickle_file):
 
 
 def test_pickle_store_more_than_10_changed_keys(pickle_file):
-    get_item, set_item = pickle.make_store("test-store", pickle_file)
+    get_item, set_item = pickle.make_store(pickle_file, "test-store")
     for x in range(12):
         set_item(f"{x}", x)
     for x in range(12):
@@ -21,7 +21,7 @@ def test_pickle_store_more_than_10_changed_keys(pickle_file):
 
 
 async def test_pickle_store_async(pickle_file):
-    get_item, set_item = pickle.make_async_store("test-store", pickle_file)
+    get_item, set_item = pickle.make_async_store(pickle_file, "test-store")
 
     await set_item("1", 1)
     await set_item("2", 2)
