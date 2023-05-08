@@ -1,5 +1,4 @@
 import collections
-import logging
 
 import gamla
 
@@ -16,10 +15,6 @@ def make_store(max_size: int, name: str):
 
         if max_size and len(store) > max_size and max_size != 0:
             store.popitem(last=False)  # Pop least recently used key.
-
-        logging.info(
-            f"Setting {cache_key} with {value} in the lru memory store.",
-        )
 
     def get_item(key: str):
         cache_key = utils.cache_key_name(name, key)
