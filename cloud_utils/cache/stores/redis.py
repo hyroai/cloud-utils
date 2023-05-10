@@ -21,7 +21,7 @@ def redis_error_handler(f):
     return wrapper
 
 
-def make_store(
+def make_json_store(
     redis_client: redis.Redis,
     ttl: int,
     name: str,
@@ -45,6 +45,40 @@ def make_store(
             await redis_error_handler(
                 redis_client.set,
             )(utils.cache_key_name(name, key), json.dumps(value))
+        else:
+            await redis_error_handler(redis_client.setex)(
+                utils.cache_key_name(name, key),
+                ttl,
+                json.dumps(value),
+            )
+
+    return get_item, set_item
+
+
+def make_bytes_store(
+    redis_client: redis.Redis,
+    ttl: int,
+    name: str,
+) -> Tuple[Callable, Callable]:
+    utils.log_initialized_cache("redis", name)
+
+    async def get_item(key: str):
+        cache_key = utils.cache_key_name(name, key)
+        result = await redis_error_handler(redis_client.get)(cache_key)
+        if result is None:
+            logging.error(f"{key} is not in {name}")
+            raise KeyError
+        try:
+            return result
+        except ValueError:  # Key contents are malformed (will force key to update).
+            logging.error(f"Malformed key detected: {key} in {name}.")
+            raise KeyError
+
+    async def set_item(key: str, value):
+        if ttl == 0:
+            await redis_error_handler(
+                redis_client.set,
+            )(utils.cache_key_name(name, key), value)
         else:
             await redis_error_handler(redis_client.setex)(
                 utils.cache_key_name(name, key),
