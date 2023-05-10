@@ -1,16 +1,12 @@
 import datetime
-import functools
-import inspect
 import json
 import logging
 import os
 from typing import Callable, Dict, Optional
 
-import async_lru
 import gamla
-import redis
 
-from cloud_utils.cache import file_store, redis_utils
+from cloud_utils.cache import file_store
 
 _RESULT_HASH_KEY = "result_hash"
 _LAST_RUN_TIMESTAMP = "last_run_timestamp"
@@ -141,59 +137,9 @@ def auto_updating_cache(
     return inner
 
 
-def persistent_cache(
-    redis_client: redis.Redis,
-    name: str,
-    environment: str,
-    is_external: bool,
-    num_misses_to_trigger_sync: int,
-) -> Callable:
+def log_initialized_cache(cache_type: str, name: str):
+    logging.info(f"initializing {cache_type} cache for {name}")
 
-    maxsize = 10_000
 
-    def simple_decorator(func):
-        if inspect.iscoroutinefunction(func):
-            return async_lru.alru_cache(maxsize=maxsize)(func)
-        return functools.lru_cache(maxsize=maxsize)(func)
-
-    if not is_external and environment in ("production", "staging", "development"):
-        return simple_decorator
-
-    if environment in ("production", "staging", "development"):
-        get_cache_item, set_cache_item = redis_utils.make_redis_store(
-            redis_client,
-            environment,
-            name,
-        )
-    else:
-        get_cache_item, set_cache_item = file_store.make_file_store(
-            name,
-            num_misses_to_trigger_sync,
-        )
-
-    def decorator(func):
-        @functools.wraps(func)
-        async def wrapper_async(*args, **kwargs):
-            key = gamla.make_call_key(args, kwargs)
-            try:
-                return get_cache_item(key)
-            except KeyError:
-                result = await func(*args, **kwargs)
-                set_cache_item(key, result)
-                return result
-
-        @functools.wraps(func)
-        def wrapper(*args, **kwargs):
-            key = gamla.make_call_key(args, kwargs)
-            try:
-                return get_cache_item(key)
-            except KeyError:
-                result = func(*args, **kwargs)
-                set_cache_item(key, result)
-                return result
-
-        if inspect.iscoroutinefunction(func):
-            return wrapper_async
-        return wrapper
-
-    return decorator
+def cache_key_name(cache_name: str, key: str) -> str:
+    return f"{cache_name}:{key}"

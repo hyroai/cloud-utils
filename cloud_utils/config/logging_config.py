@@ -25,7 +25,7 @@ def _remove_all_handlers() -> None:
         logging.root.removeHandler(handler)
 
 
-def _context_filter(record) -> int:
+def _context_filter(record: logging.LogRecord) -> bool:
     record.prefix = _logging_prefix.get()
     record.environment = os.getenv("HOSTNAME", "dev")
     return True
