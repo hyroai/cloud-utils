@@ -2,7 +2,7 @@ import asyncio
 import logging
 import os
 import tempfile
-from typing import Any, Dict, Text, Iterable
+from typing import Any, Dict, Iterable, Text
 
 import gamla
 import yaml
@@ -47,7 +47,8 @@ async def install_release(
         with open(filename, "w") as values_file:
             values_file.write(yaml.dump(chart_values))
         await _run_in_shell(
-            ["helm", "upgrade", release_name, chart_name, "--install", "-f", filename]+helm_extra_args,
+            ["helm", "upgrade", release_name, chart_name, "--install", "-f", filename]
+            + helm_extra_args,
             chart_physical_dir,
         )
     finally:
