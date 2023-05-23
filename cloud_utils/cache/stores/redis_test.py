@@ -1,9 +1,9 @@
 import asyncio
 
-from fakeredis import FakeServer, aioredis
+from fakeredis import FakeServer, aioredis, FakeStrictRedis
 
 from cloud_utils.cache import utils
-from cloud_utils.cache.stores import redis
+from cloud_utils.cache.stores import redis, redis_sync
 
 _SERVER = FakeServer()
 
@@ -31,3 +31,27 @@ async def test_redis_store_ttl():
         await get_item("1")
     except KeyError:
         assert utils.cache_key_name("ttl_1", "1") not in await client.keys()
+
+
+def test_sync_redis_store_unbounded():
+    client = FakeStrictRedis(server=_SERVER)
+    get_item, set_item = redis_sync.make_store(client, 0, "unbound_store")
+
+    set_item("1", 1)
+    set_item("2", 2)
+    set_item("3", "3")
+
+    assert get_item("1") == 1
+    assert get_item("2") == 2
+    assert get_item("3") == "3"
+
+
+def test_redis_sync_store_ttl():
+    client = FakeStrictRedis(server=_SERVER)
+    get_item, set_item = redis_sync.make_store(client, 1, "ttl_1")
+
+    set_item("1", 1)
+    try:
+        get_item("1")
+    except KeyError:
+        assert utils.cache_key_name("ttl_1", "1") not in client.keys()
