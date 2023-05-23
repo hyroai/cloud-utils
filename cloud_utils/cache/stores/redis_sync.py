@@ -32,7 +32,7 @@ def make_store(
         cache_key = utils.cache_key_name(name, key)
         result = _redis_error_handler(redis_client.get)(cache_key)
         if result is None:
-            logging.error(f"{key} is not in {name}")
+            logging.debug(f"{key} is not in {name}")
             raise KeyError
         try:
             return json.loads(result)
