@@ -1,6 +1,6 @@
 import asyncio
 
-from fakeredis import FakeServer, aioredis, FakeStrictRedis
+from fakeredis import FakeServer, FakeStrictRedis, aioredis
 
 from cloud_utils.cache import utils
 from cloud_utils.cache.stores import redis, redis_sync
