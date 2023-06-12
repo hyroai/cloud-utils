@@ -22,7 +22,10 @@ def _redis_error_handler(f):
 
 
 def make_store(
-    redis_client: redis.Redis, ttl: int, name: str, json_serializable: bool
+    redis_client: redis.Redis,
+    ttl: int,
+    name: str,
+    json_serializable: bool,
 ) -> Tuple[Callable, Callable]:
     utils.log_initialized_cache("redis", name)
 
@@ -42,11 +45,14 @@ def make_store(
         value = json.dumps(value) if json_serializable else value
         if ttl == 0:
             _redis_error_handler(redis_client.set)(
-                utils.cache_key_name(name, key), value
+                utils.cache_key_name(name, key),
+                value,
             )
         else:
             _redis_error_handler(redis_client.setex)(
-                utils.cache_key_name(name, key), ttl, value
+                utils.cache_key_name(name, key),
+                ttl,
+                value,
             )
 
     return get_item, set_item
