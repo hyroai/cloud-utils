@@ -41,14 +41,12 @@ def make_store(
     def set_item(key: str, value):
         value = json.dumps(value) if json_serializable else value
         if ttl == 0:
-            _redis_error_handler(
-                redis_client.set,
-            )(utils.cache_key_name(name, key), value)
+            _redis_error_handler(redis_client.set)(
+                utils.cache_key_name(name, key), value
+            )
         else:
             _redis_error_handler(redis_client.setex)(
-                utils.cache_key_name(name, key),
-                ttl,
-                value,
+                utils.cache_key_name(name, key), ttl, value
             )
 
     return get_item, set_item
