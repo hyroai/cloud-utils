@@ -2,7 +2,6 @@ import json
 import logging
 from typing import Callable, Tuple
 
-import gamla
 import redis
 
 from cloud_utils.cache import utils
