@@ -44,7 +44,7 @@ def make_store(
             raise KeyError
 
     def set_item(key: str, value):
-        value = json.loads(value) if type(value) is not bytes else value
+        value = json.dumps(value) if type(value) is not bytes else value
         if ttl == 0:
             _redis_error_handler(
                 redis_client.set,
