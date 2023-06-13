@@ -7,6 +7,8 @@ import gamla
 
 from cloud_utils.cache import utils
 
+_NUMBER_OF_KEYS_CHANGED_TO_TRIGGER_SYNC = 50
+
 
 def _local_cache_path(cache_name: str, path: str):
     return os.path.join(path, f"{cache_name}.pickle")
@@ -50,9 +52,9 @@ def make_store(cache_path: str, name: str) -> Tuple[Callable, Callable]:
         change_count += 1
         cache[utils.cache_key_name(name, key)] = value
 
-        if change_count >= 10:
+        if change_count >= _NUMBER_OF_KEYS_CHANGED_TO_TRIGGER_SYNC:
             logging.info(
-                f"More than 10 keys changed in cache {name}. Syncing with local file.",
+                f"More than {_NUMBER_OF_KEYS_CHANGED_TO_TRIGGER_SYNC} keys changed in cache {name}. Syncing with local file.",
             )
 
             try:
@@ -60,7 +62,7 @@ def make_store(cache_path: str, name: str) -> Tuple[Callable, Callable]:
                 logging.info(
                     f"Synced cache {name} to local file",
                 )
-                change_count -= 10
+                change_count -= _NUMBER_OF_KEYS_CHANGED_TO_TRIGGER_SYNC
             except (OSError, IOError, EOFError) as exception:
                 logging.error(
                     f"Could not sync {name} with local file. Error: {exception}.",
