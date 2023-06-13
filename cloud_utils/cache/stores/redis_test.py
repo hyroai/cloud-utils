@@ -35,7 +35,7 @@ async def test_redis_store_ttl():
 
 def test_sync_redis_store_unbounded():
     client = FakeStrictRedis(server=_SERVER)
-    get_item, set_item = redis_sync.make_store(client, 0, "unbound_store")
+    get_item, set_item = redis_sync.make_store(client, 0, "unbound_store", True)
 
     set_item("1", 1)
     set_item("2", 2)
@@ -48,7 +48,7 @@ def test_sync_redis_store_unbounded():
 
 def test_redis_sync_store_ttl():
     client = FakeStrictRedis(server=_SERVER)
-    get_item, set_item = redis_sync.make_store(client, 1, "ttl_1")
+    get_item, set_item = redis_sync.make_store(client, 1, "ttl_1", True)
 
     set_item("1", 1)
     try:
