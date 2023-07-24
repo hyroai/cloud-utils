@@ -1,4 +1,5 @@
 import asyncio
+import json
 
 from fakeredis import FakeServer, FakeStrictRedis, aioredis
 
@@ -10,7 +11,13 @@ _SERVER = FakeServer()
 
 async def test_redis_store_unbounded():
     client = aioredis.FakeRedis(server=_SERVER)
-    get_item, set_item = redis.make_store(client, 0, "unbound_store", True)
+    get_item, set_item = redis.make_store(
+        client,
+        0,
+        "unbound_store",
+        json.dumps,
+        json.loads,
+    )
 
     await set_item("1", 1)
     await set_item("2", 2)
@@ -23,7 +30,7 @@ async def test_redis_store_unbounded():
 
 async def test_redis_store_ttl():
     client = aioredis.FakeRedis(server=_SERVER)
-    get_item, set_item = redis.make_store(client, 1, "ttl_1", True)
+    get_item, set_item = redis.make_store(client, 1, "ttl_1", json.dumps, json.loads)
 
     await set_item("1", 1)
     await asyncio.sleep(2)
@@ -35,7 +42,13 @@ async def test_redis_store_ttl():
 
 def test_sync_redis_store_unbounded():
     client = FakeStrictRedis(server=_SERVER)
-    get_item, set_item = redis_sync.make_store(client, 0, "unbound_store", True)
+    get_item, set_item = redis_sync.make_store(
+        client,
+        0,
+        "unbound_store",
+        json.dumps,
+        json.loads,
+    )
 
     set_item("1", 1)
     set_item("2", 2)
@@ -48,7 +61,13 @@ def test_sync_redis_store_unbounded():
 
 def test_redis_sync_store_ttl():
     client = FakeStrictRedis(server=_SERVER)
-    get_item, set_item = redis_sync.make_store(client, 1, "ttl_1", True)
+    get_item, set_item = redis_sync.make_store(
+        client,
+        1,
+        "ttl_1",
+        json.dumps,
+        json.loads,
+    )
 
     set_item("1", 1)
     try:

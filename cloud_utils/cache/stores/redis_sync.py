@@ -1,6 +1,5 @@
-import json
 import logging
-from typing import Callable, Tuple
+from typing import Any, Callable, Tuple
 
 import redis
 
@@ -25,7 +24,8 @@ def make_store(
     redis_client: redis.Redis,
     ttl: int,
     name: str,
-    json_serializable: bool,
+    encoder: Callable[[Any], Any],
+    decoder: Callable[[Any], Any],
 ) -> Tuple[Callable, Callable]:
     utils.log_initialized_cache("redis", name)
 
@@ -36,13 +36,13 @@ def make_store(
             logging.debug(f"{key} is not in {name}")
             raise KeyError
         try:
-            return json.loads(result) if json_serializable else result
+            return decoder(result)
         except ValueError:  # Key contents are malformed (will force key to update).
             logging.error(f"Malformed key detected: {key} in {name}.")
             raise KeyError
 
     def set_item(key: str, value):
-        value = json.dumps(value) if json_serializable else value
+        value = encoder(value)
         if ttl == 0:
             _redis_error_handler(redis_client.set)(
                 utils.cache_key_name(name, key),
