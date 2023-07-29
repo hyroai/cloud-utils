@@ -9,10 +9,18 @@ from cloud_utils.cache.stores import redis, redis_sync
 _SERVER = FakeServer()
 
 
+def _make_sync_fake_redis_client():
+    return FakeStrictRedis(server=_SERVER)
+
+
+def _make_async_fake_redis_client():
+    return aioredis.FakeRedis(server=_SERVER)
+
+
 async def test_redis_store_unbounded():
-    client = aioredis.FakeRedis(server=_SERVER)
     get_item, set_item = redis.make_store(
-        client,
+        _make_async_fake_redis_client,
+        0,
         0,
         "unbound_store",
         json.dumps,
@@ -29,21 +37,29 @@ async def test_redis_store_unbounded():
 
 
 async def test_redis_store_ttl():
-    client = aioredis.FakeRedis(server=_SERVER)
-    get_item, set_item = redis.make_store(client, 1, "ttl_1", json.dumps, json.loads)
+    get_item, set_item = redis.make_store(
+        _make_async_fake_redis_client,
+        5,
+        1,
+        "ttl_1",
+        json.dumps,
+        json.loads,
+    )
 
     await set_item("1", 1)
     await asyncio.sleep(2)
     try:
         await get_item("1")
     except KeyError:
-        assert utils.cache_key_name("ttl_1", "1") not in await client.keys()
+        assert (
+            utils.cache_key_name("ttl_1", "1")
+            not in await _make_async_fake_redis_client().keys()
+        )
 
 
 def test_sync_redis_store_unbounded():
-    client = FakeStrictRedis(server=_SERVER)
     get_item, set_item = redis_sync.make_store(
-        client,
+        lambda: FakeStrictRedis(server=_SERVER),
         0,
         "unbound_store",
         json.dumps,
@@ -60,9 +76,8 @@ def test_sync_redis_store_unbounded():
 
 
 def test_redis_sync_store_ttl():
-    client = FakeStrictRedis(server=_SERVER)
     get_item, set_item = redis_sync.make_store(
-        client,
+        _make_sync_fake_redis_client,
         1,
         "ttl_1",
         json.dumps,
@@ -73,4 +88,7 @@ def test_redis_sync_store_ttl():
     try:
         get_item("1")
     except KeyError:
-        assert utils.cache_key_name("ttl_1", "1") not in client.keys()
+        assert (
+            utils.cache_key_name("ttl_1", "1")
+            not in _make_sync_fake_redis_client().keys()
+        )
