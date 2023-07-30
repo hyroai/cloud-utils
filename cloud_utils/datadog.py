@@ -19,7 +19,6 @@ from datadog_api_client.v2.model.metric_series import MetricSeries
 
 configuration = Configuration()
 
-
 Tags = gamla.Enum(["job_id", "status_code", "scraper", "function_name", "success"])
 
 
@@ -36,20 +35,22 @@ def send_event(conf: dict, title: str, text: str, tags: list[str]) -> None:
 
 
 def _build_metric_body(
-    metric_name: str, value: float, tags: list[str]
+    metric_name: str,
+    value: float,
+    tags: list[str],
 ) -> MetricPayload:
     return MetricPayload(
         series=[
             MetricSeries(
                 metric=metric_name,
                 points=[
-                    MetricPoint(value=value, timestamp=int(datetime.now().timestamp()))
+                    MetricPoint(value=value, timestamp=int(datetime.now().timestamp())),
                 ],
                 tags=tags,
                 type=MetricIntakeType.GAUGE,
                 resources=[MetricResource(name="nlu-runtime", type="host")],
-            )
-        ]
+            ),
+        ],
     )
 
 
