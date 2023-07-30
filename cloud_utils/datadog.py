@@ -55,7 +55,10 @@ def _build_metric_body(
 
 
 def send_metric(
-    configuration: dict, metric_name: str, value: float, tags: list[str]
+    configuration: dict,
+    metric_name: str,
+    value: float,
+    tags: list[str],
 ) -> None:
     client_configuration.api_key["apiKeyAuth"] = configuration["DATADOG_API_KEY"]
     client_configuration.api_key["appKeyAuth"] = configuration["DATADOG_APP_KEY"]
@@ -69,7 +72,9 @@ def send_metric(
 
 
 def send_duration_metric(
-    configuration: dict, elapsed_time: str, function_name: str
+    configuration: dict,
+    elapsed_time: str,
+    function_name: str,
 ) -> None:
     send_metric(
         configuration,
