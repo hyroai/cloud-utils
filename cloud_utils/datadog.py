@@ -54,7 +54,9 @@ def _build_metric_body(
     )
 
 
-def send_metric(configuration: dict, metric_name: str, value: float, tags: list[str]) -> None:
+def send_metric(
+    configuration: dict, metric_name: str, value: float, tags: list[str]
+) -> None:
     client_configuration.api_key["apiKeyAuth"] = configuration["DATADOG_API_KEY"]
     client_configuration.api_key["appKeyAuth"] = configuration["DATADOG_APP_KEY"]
     with ApiClient(client_configuration) as api_client:
@@ -66,7 +68,9 @@ def send_metric(configuration: dict, metric_name: str, value: float, tags: list[
             logging.error(f"Exception when sending metric to datadog {e}")
 
 
-def send_duration_metric(configuration: dict, elapsed_time: str, function_name: str) -> None:
+def send_duration_metric(
+    configuration: dict, elapsed_time: str, function_name: str
+) -> None:
     send_metric(
         configuration,
         "function_duration",
