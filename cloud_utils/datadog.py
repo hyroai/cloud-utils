@@ -17,15 +17,15 @@ from datadog_api_client.v2.model.metric_point import MetricPoint
 from datadog_api_client.v2.model.metric_resource import MetricResource
 from datadog_api_client.v2.model.metric_series import MetricSeries
 
-configuration = Configuration()
+client_configuration = Configuration()
 
 Tags = gamla.Enum(["job_id", "status_code", "scraper", "function_name", "success"])
 
 
-def send_event(conf: dict, title: str, text: str, tags: list[str]) -> None:
-    configuration.api_key["apiKeyAuth"] = conf["DATADOG_API_KEY"]
-    configuration.api_key["appKeyAuth"] = conf["DATADOG_APP_KEY"]
-    with ApiClient(configuration) as api_client:
+def send_event(configuration: dict, title: str, text: str, tags: list[str]) -> None:
+    client_configuration.api_key["apiKeyAuth"] = configuration["DATADOG_API_KEY"]
+    client_configuration.api_key["appKeyAuth"] = configuration["DATADOG_APP_KEY"]
+    with ApiClient(client_configuration) as api_client:
         api_instance = EventsApi(api_client)
         body = EventCreateRequest(title=title, text=text, tags=tags)
         try:
@@ -54,10 +54,10 @@ def _build_metric_body(
     )
 
 
-def send_metric(conf: dict, metric_name: str, value: float, tags: list[str]) -> None:
-    configuration.api_key["apiKeyAuth"] = conf["DATADOG_API_KEY"]
-    configuration.api_key["appKeyAuth"] = conf["DATADOG_APP_KEY"]
-    with ApiClient(configuration) as api_client:
+def send_metric(configuration: dict, metric_name: str, value: float, tags: list[str]) -> None:
+    client_configuration.api_key["apiKeyAuth"] = configuration["DATADOG_API_KEY"]
+    client_configuration.api_key["appKeyAuth"] = configuration["DATADOG_APP_KEY"]
+    with ApiClient(client_configuration) as api_client:
         api_instance = MetricsApi(api_client)
         body = _build_metric_body(metric_name, value, tags)
         try:
@@ -66,9 +66,9 @@ def send_metric(conf: dict, metric_name: str, value: float, tags: list[str]) -> 
             logging.error(f"Exception when sending metric to datadog {e}")
 
 
-def send_duration_metric(conf: dict, elapsed_time: str, function_name: str) -> None:
+def send_duration_metric(configuration: dict, elapsed_time: str, function_name: str) -> None:
     send_metric(
-        conf,
+        configuration,
         "function_duration",
         float(elapsed_time),
         [f"{Tags.function_name}:{function_name}"],
