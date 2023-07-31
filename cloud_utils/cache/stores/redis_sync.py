@@ -21,17 +21,25 @@ def _redis_error_handler(f):
 
 
 def make_store(
-    redis_client: redis.Redis,
+    make_redis_client: Callable[[], redis.Redis],
     ttl: int,
     name: str,
     encoder: Callable[[Any], Any],
     decoder: Callable[[Any], Any],
 ) -> Tuple[Callable, Callable]:
+    redis_client = None
     utils.log_initialized_cache("redis", name)
+
+    def get_redis_client():
+        nonlocal redis_client
+        if redis_client is None:
+            redis_client = make_redis_client()
+
+        return redis_client
 
     def get_item(key: str):
         cache_key = utils.cache_key_name(name, key)
-        result = _redis_error_handler(redis_client.get)(cache_key)
+        result = _redis_error_handler(get_redis_client().get)(cache_key)
         if result is None:
             logging.debug(f"{key} is not in {name}")
             raise KeyError
@@ -44,12 +52,12 @@ def make_store(
     def set_item(key: str, value):
         value = encoder(value)
         if ttl == 0:
-            _redis_error_handler(redis_client.set)(
+            _redis_error_handler(get_redis_client().set)(
                 utils.cache_key_name(name, key),
                 value,
             )
         else:
-            _redis_error_handler(redis_client.setex)(
+            _redis_error_handler(get_redis_client().setex)(
                 utils.cache_key_name(name, key),
                 ttl,
                 value,

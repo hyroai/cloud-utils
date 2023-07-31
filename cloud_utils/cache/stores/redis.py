@@ -1,6 +1,7 @@
 import logging
 from typing import Any, Callable, Tuple
 
+import gamla
 import redis.asyncio as redis
 
 from cloud_utils.cache import utils
@@ -15,23 +16,32 @@ def redis_error_handler(f):
             redis.ConnectionError,
             redis.TimeoutError,
         ) as err:  # Could not connect to redis. This could be temporary. Ignore.
-            logging.error(f"Got {str(err)} error")
+            logging.error(f"redis: got {str(err)} error")
 
     return wrapper
 
 
 def make_store(
-    redis_client: redis.Redis,
+    make_redis_client: Callable[[], redis.Redis],
+    max_parallelism: int,
     ttl: int,
     name: str,
     encoder: Callable[[Any], Any],
     decoder: Callable[[Any], Any],
 ) -> Tuple[Callable, Callable]:
+    redis_client = None
     utils.log_initialized_cache("redis", name)
+
+    def get_redis_client():
+        nonlocal redis_client
+        if redis_client is None:
+            redis_client = make_redis_client()
+
+        return redis_client
 
     async def get_item(key: str):
         cache_key = utils.cache_key_name(name, key)
-        result = await redis_error_handler(redis_client.get)(cache_key)
+        result = await redis_error_handler(get_redis_client().get)(cache_key)
         if result is None:
             logging.debug(f"{key} is not in {name}")
             raise KeyError
@@ -45,13 +55,21 @@ def make_store(
         value = encoder(value)
         if ttl == 0:
             await redis_error_handler(
-                redis_client.set,
+                get_redis_client().set,
             )(utils.cache_key_name(name, key), value)
         else:
-            await redis_error_handler(redis_client.setex)(
+            await redis_error_handler(get_redis_client().setex)(
                 utils.cache_key_name(name, key),
                 ttl,
                 value,
             )
+
+    # When using a redis async client, we are limited to the amount of connections we can create.
+    # Usually the cached function `f` will be throttled, meaning we can exhaust all connections on `get` operations (`get` happens before `f`).
+    # In order to allow `set` operations to also occur in parallel we split the get/set operations proportionally to `max_parallelism`.
+    if max_parallelism > 0:
+        allowed_get_operations = round(0.8 * max_parallelism)
+        get_item = gamla.throttle(allowed_get_operations, get_item)
+        set_item = gamla.throttle(max_parallelism - allowed_get_operations, set_item)
 
     return get_item, set_item
