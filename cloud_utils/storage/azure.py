@@ -92,6 +92,10 @@ def upload_blob(bucket_name: str, blob_name: str, obj: Any):
     )
 
 
+def upload_text(bucket_name: str, blob_name: str, text: Text):
+    _blob_service().create_blob_from_text(bucket_name, blob_name, text)
+
+
 @gamla.curry
 def download_blob_as_string_with_encoding(
     encoding: str,
