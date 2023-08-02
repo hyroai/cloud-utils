@@ -96,7 +96,7 @@ def _async_timeit_with_metric(api_key: str, f: Callable) -> Callable:
 
 
 @gamla.curry
-def timeit_with_metric(api_key: dict, f: Callable) -> Callable:
+def timeit_with_metric(api_key: str, f: Callable) -> Callable:
     if asyncio.iscoroutinefunction(f):
         return _async_timeit_with_metric(api_key, f)
 
