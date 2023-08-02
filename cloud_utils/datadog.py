@@ -22,9 +22,8 @@ client_configuration = Configuration()
 Tags = gamla.Enum(["job_id", "status_code", "scraper", "function_name", "success"])
 
 
-def send_event(configuration: dict, title: str, text: str, tags: list[str]) -> None:
-    client_configuration.api_key["apiKeyAuth"] = configuration["DATADOG_API_KEY"]
-    client_configuration.api_key["appKeyAuth"] = configuration["DATADOG_APP_KEY"]
+def send_event(api_key: str, title: str, text: str, tags: list[str]) -> None:
+    client_configuration.api_key["apiKeyAuth"] = api_key
     with ApiClient(client_configuration) as api_client:
         api_instance = EventsApi(api_client)
         body = EventCreateRequest(title=title, text=text, tags=tags)
@@ -55,13 +54,12 @@ def _build_metric_body(
 
 
 def send_metric(
-    configuration: dict,
+    api_key: str,
     metric_name: str,
     value: float,
     tags: list[str],
 ) -> None:
-    client_configuration.api_key["apiKeyAuth"] = configuration["DATADOG_API_KEY"]
-    client_configuration.api_key["appKeyAuth"] = configuration["DATADOG_APP_KEY"]
+    client_configuration.api_key["apiKeyAuth"] = api_key
     with ApiClient(client_configuration) as api_client:
         api_instance = MetricsApi(api_client)
         body = _build_metric_body(metric_name, value, tags)
@@ -72,35 +70,35 @@ def send_metric(
 
 
 def send_duration_metric(
-    configuration: dict,
+    api_key: str,
     elapsed_time: str,
     function_name: str,
 ) -> None:
     send_metric(
-        configuration,
+        api_key,
         "function_duration",
         float(elapsed_time),
         [f"{Tags.function_name}:{function_name}"],
     )
 
 
-def _async_timeit_with_metric(conf: dict, f: Callable) -> Callable:
+def _async_timeit_with_metric(api_key: str, f: Callable) -> Callable:
     @functools.wraps(f)
     async def wrapper(*args, **kwargs):
         start_time = time.time()
         result = await f(*args, **kwargs)
         elapsed_time = str(round(time.time() - start_time, 2))
         gamla.log_finish(f.__name__, start_time)
-        send_duration_metric(conf, elapsed_time, f.__name__)
+        send_duration_metric(api_key, elapsed_time, f.__name__)
         return result
 
     return wrapper
 
 
 @gamla.curry
-def timeit_with_metric(conf: dict, f: Callable) -> Callable:
+def timeit_with_metric(api_key: dict, f: Callable) -> Callable:
     if asyncio.iscoroutinefunction(f):
-        return _async_timeit_with_metric(conf, f)
+        return _async_timeit_with_metric(api_key, f)
 
     @functools.wraps(f)
     def wrapper(*args, **kwargs):
@@ -108,7 +106,7 @@ def timeit_with_metric(conf: dict, f: Callable) -> Callable:
         result = f(*args, **kwargs)
         elapsed_time = str(round(time.time() - start_time, 2))
         gamla.log_finish(f.__name__, start_time)
-        send_duration_metric(conf, elapsed_time, f.__name__)
+        send_duration_metric(api_key, elapsed_time, f.__name__)
         return result
 
     return wrapper
