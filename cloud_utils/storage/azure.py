@@ -34,7 +34,7 @@ def _sign_params(key: str, params: dict):
     ).decode()
 
 
-def _head_headers_and_url(bucket_name: str, blob_name: str):
+def head_headers_and_url(bucket_name: str, blob_name: str):
     now = datetime.datetime.utcnow().strftime("%a, %d %b %Y %H:%M:%S GMT")
     config = _get_connection_config()
     params = {
@@ -139,7 +139,7 @@ def download_blob_to_file(bucket_name: str, blob_name: str, path: pathlib.Path):
 
 @gamla.curry
 async def blob_exists(bucket_name: str, blob_name: str) -> bool:
-    headers, url = _head_headers_and_url(bucket_name, blob_name)
+    headers, url = head_headers_and_url(bucket_name, blob_name)
     return (
         True
         if (await gamla.head_async_with_headers(headers, 60, url)).status_code == 200
