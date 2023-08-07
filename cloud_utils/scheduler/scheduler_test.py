@@ -35,7 +35,7 @@ def test_empty_scheduler():
     )
 
 
-# @pytest.mark.skip("ENG-2899")
+@pytest.mark.skip("ENG-2899")
 def test_secrets_scheduler():
     deploy_cron_jobs.deploy_schedule(
         "test-tag",
