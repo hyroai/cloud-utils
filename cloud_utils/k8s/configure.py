@@ -6,7 +6,7 @@ from kubernetes import config
 
 
 def init_kubernetes_client():
-    kube_config_file = Path("~/.kube/config").expanduser()
+    kube_config_file = Path(os.getenv("KUBECONFIG", "~/.kube/config")).expanduser()
     if not kube_config_file.exists():
         config_decoded = base64.b64decode(os.environ["KUBE_CONFIG"])
         Path("~/.kube").expanduser().mkdir(exist_ok=True)
