@@ -1,4 +1,3 @@
-import base64
 import logging
 import os
 import time
@@ -18,32 +17,6 @@ def _set_dry_run(options: Dict, dry_run: bool):
 
 
 _cronjob_name = gamla.wrap_str("{}-cronjob")
-
-
-def _create_secret(secret: Dict[Text, Text]):
-    api_instance = client.CoreV1Api()
-    try:
-        api_instance.read_namespaced_secret(
-            name=secret["secret_name"],
-            namespace="default",
-        )
-    except rest.ApiException as e:
-        if e.status != 404:
-            raise RuntimeError(f"Unknown error: {e}.")
-
-        api_instance.create_namespaced_secret(
-            body=client.V1Secret(
-                api_version="v1",
-                kind="Secret",
-                metadata={"name": secret["secret_name"], "type": "Opaque"},
-                data=gamla.valmap(
-                    lambda s: base64.b64encode(os.getenv(s, s).encode()).decode(),
-                    secret["data"],
-                ),
-            ),
-            namespace="default",
-        )
-        logging.info(f"Secret '{secret['secret_name']}' created.")
 
 
 def _wait_for_job_completion(
@@ -150,10 +123,11 @@ def create_cron_job(
 @gamla.curry
 def _make_pod_manifest(
     env_variables: List[Dict[Text, Text]],
-    secrets: List[Dict[Text, Text]],
-    env_from_secrets: List[str],
-    secret_provider_class: str,
-    secrets_name_prefix: str,
+    secrets: List[Dict[Text, List[str]]],
+    secret_volumes: List[Dict[Text, Text]],
+    env_from_secrets: List[str],  # Deprecated
+    secret_provider_class: str,  # Deprecated
+    secrets_name_prefix: str,  # Deprecated
     resources: Dict[str, Dict[str, str]],
     command: List[Text],
     args: List[Text],
@@ -162,7 +136,8 @@ def _make_pod_manifest(
 ) -> client.V1PodSpec:
     """Creates a V1PodSpec object with given parameters
     env_variables - list of { name, value } dicts to set as environment vars.
-    secrets - deprecated, use env_from_secrets instead.
+    secrets - A list of Kubernetes secrets and their keys to set as environment vars.
+    secret_volumes - A list of Kubernetes secrets to mount as volumes.
     env_from_secrets - list of strings corresponding with Vault keys available to the pod.
     secret_provider_class - a name of a SecretProviderClass to provide the env_from_secrets.
     resources - Kubernetes resources, Dict of { requests, limits }.
@@ -171,8 +146,6 @@ def _make_pod_manifest(
     extra_arg - Additional command on top of the commands list. Used as a cmd parameter and not via json file.
     base_pod_spec - see _make_base_pod_spec function.
     """
-    for secret in secrets:
-        _create_secret(secret)
     if extra_arg:
         command[-1] += f" {extra_arg}"
     return gamla.pipe(
@@ -188,6 +161,7 @@ def _make_pod_manifest(
                         lambda value: os.getenv(value, value),
                     ),
                 ),
+                # TODO(erez): Remove once finish migrating to vault operator.
                 gamla.concat_with(
                     gamla.map(
                         lambda env_var: {
@@ -201,16 +175,20 @@ def _make_pod_manifest(
                         },
                     )(env_from_secrets),
                 ),
+                gamla.concat_with(
+                    gamla.mapcat(_env_vars_from_secret)(secrets),
+                ),
                 tuple,
             ),
         ),
         gamla.when(
-            gamla.just(gamla.nonempty(secrets)),
+            gamla.just(gamla.nonempty(secret_volumes)),
             gamla.compose_left(
-                gamla.juxt(*map(_add_volume_from_secret, secrets)),
+                gamla.juxt(*map(_add_volume_from_secret, secret_volumes)),
                 gamla.merge,
             ),
         ),
+        # TODO(erez): Remove once finish migrating to vault operator.
         gamla.when(
             gamla.just(gamla.nonempty(secret_provider_class)),
             _add_secret_provider_volume(secret_provider_class),
@@ -324,6 +302,22 @@ def _add_volume_from_secret(secret: Dict[Text, Text]):
     )
 
 
+def _env_vars_from_secret(secret: Dict[str, List[str]]):
+    return tuple(
+        gamla.map(
+            lambda key: {
+                "name": key,
+                "valueFrom": {
+                    "secretKeyRef": {
+                        "name": secret["secret_name"],
+                        "key": key,
+                    },
+                },
+            },
+        )(secret["keys"]),
+    )
+
+
 def _add_secret_provider_volume(provider_name: str):
     return _add_volume_and_mount(
         {
@@ -363,6 +357,7 @@ def make_job_spec(
         _make_pod_manifest(
             run.get("env_variables", []),
             run.get("secrets", []),
+            run.get("secret_volumes", []),
             run.get("env_from_secrets", []),
             run.get("secret_provider_class", ""),
             run.get("secrets_name_prefix", ""),

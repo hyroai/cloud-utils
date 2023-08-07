@@ -33,3 +33,14 @@ def test_empty_scheduler():
         True,
         json.load((pathlib.Path(__file__).parent / "test_schedule_empty.json").open()),
     )
+
+
+# @pytest.mark.skip("ENG-2899")
+def test_secrets_scheduler():
+    deploy_cron_jobs.deploy_schedule(
+        "test-tag",
+        True,
+        json.load(
+            (pathlib.Path(__file__).parent / "test_secrets_schedule.json").open(),
+        ),
+    )
