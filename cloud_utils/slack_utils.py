@@ -1,7 +1,13 @@
+import argparse
+import json
+import os
 import traceback
-from typing import Dict
+from typing import Callable, Dict
 
 import gamla
+import slack_sdk
+from gamla import frozendict
+from slack_sdk import errors as slack_errors
 
 send_message_to_webhook = gamla.post_json_async(5)
 
@@ -34,4 +40,42 @@ async def report_exception(webhook_url: str, text: str):
         text,
         _make_exception_payload,
         gamla.post_json_async(5, webhook_url),
+    )
+
+
+def _send_dm(client: slack_sdk.WebClient, message: str) -> Callable[[str], None]:
+    def send_dm(channel: str):
+        client.chat_postMessage(channel=channel, text=message)
+
+    return send_dm
+
+
+def _get_slack_user(
+    client: slack_sdk.WebClient, email: str, email_map: Dict[str, str]
+) -> slack_sdk.web.SlackResponse:
+    try:
+        return client.users_lookupByEmail(email=email)
+    except slack_errors.SlackApiError:
+        return client.users_lookupByEmail(email=email_map.get(email, email))
+
+
+def dm_slack_user(email: str, message: str, email_map: Dict[str, str]=frozendict()):
+    client = slack_sdk.WebClient(token=os.environ["SLACK_DM_TOKEN"])
+    gamla.pipe(
+        _get_slack_user(client, email, email_map),
+        gamla.get_in(["user", "id"]),
+        _send_dm(client, message),
+    )
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--email")
+    parser.add_argument("--message")
+    parser.add_argument("--email_map")
+    args = parser.parse_args()
+    dm_slack_user(
+        args.email,
+        args.message,
+        json.loads(args.email_map)
     )
