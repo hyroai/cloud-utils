@@ -1,5 +1,6 @@
 import argparse
 import json
+import logging
 import os
 import traceback
 from typing import Callable, Dict
@@ -8,6 +9,10 @@ import gamla
 import slack_sdk
 from gamla import frozendict
 from slack_sdk import errors as slack_errors
+
+_SLACK_NOTIFICATIONS_WEBHOOK_URL = (
+    "https://hooks.slack.com/services/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"
+)
 
 send_message_to_webhook = gamla.post_json_async(5)
 
@@ -43,6 +48,32 @@ async def report_exception(webhook_url: str, text: str):
     )
 
 
+async def post_to_notifications_and_dm_user(message: str,
+                                            email: str = None,
+                                            email_map: Dict[str, str]=frozendict()
+                                            ) -> bool:
+    """
+    DM the email with the message, if given, and catch and log the exception if the email isn't right.
+    Then post the message to `#notifications`.
+    :return: a `dm_succeeded` boolean --> IFF the DM went through
+    """
+    dm_succeeded = False
+    if email:
+        dm_succeeded = dm_slack_user_and_log_error(email, message, email_map)
+        message += f" ({email})"
+    await post_to_notifications(message)
+    return dm_succeeded
+
+
+async def post_to_notifications(text: str):
+    logging.info(text)
+    await gamla.post_json_async(
+        10,
+        _SLACK_NOTIFICATIONS_WEBHOOK_URL,
+        {"text": text},
+    )
+
+
 def _send_dm(client: slack_sdk.WebClient, message: str) -> Callable[[str], None]:
     def send_dm(channel: str):
         client.chat_postMessage(channel=channel, text=message)
@@ -66,6 +97,19 @@ def dm_slack_user(email: str, message: str, email_map: Dict[str, str]=frozendict
         gamla.get_in(["user", "id"]),
         _send_dm(client, message),
     )
+
+
+def dm_slack_user_and_log_error(email: str, message: str, email_map: Dict[str, str]=frozendict()) -> bool:
+    """
+    like dm_slack_user(), but in case an error occurs, (like a bad email), the exception is caught, a warning is logged,
+    and a `succeeded` boolean is returned
+    """
+    try:
+        dm_slack_user(email, message, email_map)
+        return True
+    except slack_sdk.errors.SlackApiError as e:
+        logging.warning(f"Could not send DM to Slack email '{email}'")
+        return False
 
 
 if __name__ == "__main__":
