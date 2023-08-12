@@ -1,5 +1,3 @@
-import argparse
-import json
 import logging
 import os
 import traceback
@@ -49,19 +47,16 @@ async def report_exception(webhook_url: str, text: str):
 
 
 async def post_to_notifications_and_dm_user(
-    message: str, email: str = "", email_map: Dict[str, str] = frozendict()
-) -> bool:
+    message: str, email: str, email_map: Dict[str, str] = frozendict()
+):
     """
-    DM the email with the message, if given, and catch and log the exception if the email isn't right.
-    Then post the message to `#notifications`.
-    :return: a `dm_succeeded` boolean --> IFF the DM went through
+    DM the email with the message, and catch and log the exception if the email isn't right.
     """
-    dm_succeeded = False
-    if email:
-        dm_succeeded = dm_slack_user_and_log_error(email, message, email_map)
-        message += f" ({email})"
+    try:
+        dm_slack_user(email, message, email_map)
+    except slack_sdk.errors.SlackApiError as e:
+        logging.warning(f"Could not send DM to Slack email '{email}'. See error: {e}")
     await post_to_notifications(message)
-    return dm_succeeded
 
 
 async def post_to_notifications(text: str):
@@ -97,34 +92,4 @@ def dm_slack_user(email: str, message: str, email_map: Dict[str, str] = frozendi
         _get_slack_user(client, email, email_map),
         gamla.get_in(["user", "id"]),
         _send_dm(client, message),
-    )
-
-
-def dm_slack_user_and_log_error(
-    email: str,
-    message: str,
-    email_map: Dict[str, str] = frozendict(),
-) -> bool:
-    """
-    like dm_slack_user(), but in case an error occurs, (like a bad email), the exception is caught, a warning is logged,
-    and a `succeeded` boolean is returned
-    """
-    try:
-        dm_slack_user(email, message, email_map)
-        return True
-    except slack_sdk.errors.SlackApiError as e:
-        logging.warning(f"Could not send DM to Slack email '{email}'. See error: {e}")
-        return False
-
-
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--email")
-    parser.add_argument("--message")
-    parser.add_argument("--email_map")
-    args = parser.parse_args()
-    dm_slack_user(
-        args.email,
-        args.message,
-        json.loads(args.email_map),
     )
