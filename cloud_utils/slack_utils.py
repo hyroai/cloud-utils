@@ -8,9 +8,7 @@ import slack_sdk
 from gamla import frozendict
 from slack_sdk import errors as slack_errors
 
-_SLACK_NOTIFICATIONS_WEBHOOK_URL = (
-    "https://hooks.slack.com/services/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"
-)
+_SLACK_NOTIFICATIONS_WEBHOOK_URL = os.getenv("SLACK_NOTIFICATIONS_WEBHOOK")
 
 send_message_to_webhook = gamla.post_json_async(5)
 
