@@ -8,8 +8,6 @@ import slack_sdk
 from gamla import frozendict
 from slack_sdk import errors as slack_errors
 
-_SLACK_NOTIFICATIONS_WEBHOOK_URL = os.getenv("SLACK_NOTIFICATIONS_WEBHOOK")
-
 send_message_to_webhook = gamla.post_json_async(5)
 
 
@@ -41,28 +39,6 @@ async def report_exception(webhook_url: str, text: str):
         text,
         _make_exception_payload,
         gamla.post_json_async(5, webhook_url),
-    )
-
-
-async def post_to_notifications_and_dm_user(
-    message: str, email: str, email_map: Dict[str, str] = frozendict()
-):
-    """
-    DM the email with the message, and catch and log the exception if the email isn't right.
-    """
-    try:
-        dm_slack_user(email, message, email_map)
-    except slack_sdk.errors.SlackApiError as e:
-        logging.warning(f"Could not send DM to Slack email '{email}'. See error: {e}")
-    await post_to_notifications(message)
-
-
-async def post_to_notifications(text: str):
-    logging.info(text)
-    await gamla.post_json_async(
-        10,
-        _SLACK_NOTIFICATIONS_WEBHOOK_URL,
-        {"text": text},
     )
 
 
