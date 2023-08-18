@@ -12,5 +12,6 @@ jobs:
       script: pytest
     - stage: test
       name: pre-commit
-      install: pip install pre-commit
-      script: pre-commit run --all-files
+      install: pip install pre-commit && git fetch origin master
+      script: pre-commit run --show-diff-on-failure --from-ref `git merge-base origin/master ${TRAVIS_COMMIT}` --to-ref ${TRAVIS_COMMIT}
+
