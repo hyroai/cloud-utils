@@ -16,6 +16,6 @@ jobs:
       script: >-
         git fetch origin master &&
         echo $TRAVIS_COMMIT &&
-        git merge-base origin/master ${TRAVIS_COMMIT} &&
-        pre-commit run --show-diff-on-failure --from-ref `git merge-base origin/master ${TRAVIS_COMMIT}` --to-ref ${TRAVIS_COMMIT}
+        git merge-base master ${TRAVIS_COMMIT} &&
+        pre-commit run --show-diff-on-failure --from-ref `git merge-base master ${TRAVIS_COMMIT}` --to-ref ${TRAVIS_COMMIT}
 
