@@ -4,7 +4,6 @@ from typing import Callable, Dict
 
 import gamla
 import slack_sdk
-from gamla import frozendict
 from slack_sdk import errors as slack_errors
 
 send_message_to_webhook = gamla.post_json_async(5)
@@ -59,7 +58,7 @@ def _get_slack_user(
         return client.users_lookupByEmail(email=email_map.get(email, email))
 
 
-def dm_slack_user(email: str, message: str, email_map: Dict[str, str] = frozendict()):
+def dm_slack_user(email: str, message: str, email_map: Dict[str, str]):
     client = slack_sdk.WebClient(token=os.environ["SLACK_DM_TOKEN"])
     gamla.pipe(
         _get_slack_user(client, email, email_map),
