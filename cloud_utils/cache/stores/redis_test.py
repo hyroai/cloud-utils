@@ -1,6 +1,8 @@
 import asyncio
 import json
+from typing import Callable
 
+import gamla
 from fakeredis import FakeServer, FakeStrictRedis, aioredis
 
 from cloud_utils.cache import utils
@@ -21,7 +23,7 @@ async def test_redis_store_unbounded():
     get_item, set_item = redis.make_store(
         _make_async_fake_redis_client,
         0,
-        0,
+        gamla.just(0),
         "unbound_store",
         json.dumps,
         json.loads,
@@ -36,11 +38,16 @@ async def test_redis_store_unbounded():
     assert await get_item("3") == "3"
 
 
+_ttl_by_value: Callable[[str], int] = gamla.ternary(
+    gamla.equals("1"), gamla.just(1), gamla.just(5)
+)
+
+
 async def test_redis_store_ttl():
     get_item, set_item = redis.make_store(
         _make_async_fake_redis_client,
         5,
-        1,
+        _ttl_by_value,
         "ttl_1",
         json.dumps,
         json.loads,

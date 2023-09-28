@@ -24,7 +24,7 @@ def redis_error_handler(f):
 def make_store(
     make_redis_client: Callable[[], redis.Redis],
     max_parallelism: int,
-    ttl: int,
+    ttl: Callable[[Any], int],
     name: str,
     encoder: Callable[[Any], Any],
     decoder: Callable[[Any], Any],
@@ -52,15 +52,16 @@ def make_store(
             raise KeyError
 
     async def set_item(key: str, value):
+        ttl_value = ttl(value)
         value = encoder(value)
-        if ttl == 0:
+        if ttl_value == 0:
             await redis_error_handler(
                 get_redis_client().set,
             )(utils.cache_key_name(name, key), value)
         else:
             await redis_error_handler(get_redis_client().setex)(
                 utils.cache_key_name(name, key),
-                ttl,
+                ttl_value,
                 value,
             )
 
