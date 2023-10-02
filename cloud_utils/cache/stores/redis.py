@@ -1,5 +1,5 @@
 import logging
-from typing import Any, Callable, Tuple
+from typing import Any, Callable, Tuple, Union
 
 import gamla
 import redis.asyncio as redis
@@ -21,10 +21,10 @@ def redis_error_handler(f):
     return wrapper
 
 
-def make_store(
+def common_store_logic(
     make_redis_client: Callable[[], redis.Redis],
     max_parallelism: int,
-    ttl: Callable[[Any], int],
+    ttl: Union[int, Callable[[Any], int]],
     name: str,
     encoder: Callable[[Any], Any],
     decoder: Callable[[Any], Any],
@@ -52,7 +52,7 @@ def make_store(
             raise KeyError
 
     async def set_item(key: str, value):
-        ttl_value = ttl(value)
+        ttl_value = ttl if type(ttl) is int else ttl(value)
         value = encoder(value)
         if ttl_value == 0:
             await redis_error_handler(
@@ -74,3 +74,29 @@ def make_store(
         set_item = gamla.throttle(max_parallelism - allowed_get_operations, set_item)
 
     return get_item, set_item
+
+
+def make_store(
+    make_redis_client: Callable[[], redis.Redis],
+    max_parallelism: int,
+    ttl: int,
+    name: str,
+    encoder: Callable[[Any], Any],
+    decoder: Callable[[Any], Any],
+) -> Tuple[Callable, Callable]:
+    return common_store_logic(
+        make_redis_client, max_parallelism, ttl, name, encoder, decoder
+    )
+
+
+def make_store_with_custom_ttl(
+    make_redis_client: Callable[[], redis.Redis],
+    max_parallelism: int,
+    ttl: Callable[[Any], int],
+    name: str,
+    encoder: Callable[[Any], Any],
+    decoder: Callable[[Any], Any],
+) -> Tuple[Callable, Callable]:
+    return common_store_logic(
+        make_redis_client, max_parallelism, ttl, name, encoder, decoder
+    )

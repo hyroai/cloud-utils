@@ -23,7 +23,7 @@ async def test_redis_store_unbounded():
     get_item, set_item = redis.make_store(
         _make_async_fake_redis_client,
         0,
-        gamla.just(0),
+        0,
         "unbound_store",
         json.dumps,
         json.loads,
@@ -44,10 +44,33 @@ _ttl_by_value: Callable[[str], int] = gamla.ternary(
 
 
 async def test_redis_store_ttl():
-    get_item, set_item = redis.make_store(
+    get_item, set_item = redis.make_store_with_custom_ttl(
         _make_async_fake_redis_client,
         5,
         _ttl_by_value,
+        "ttl_1",
+        json.dumps,
+        json.loads,
+    )
+
+    await set_item("1", 1)
+    await set_item("2", 2)
+    await asyncio.sleep(2)
+    assert await get_item("2") == 2
+    try:
+        await get_item("1")
+    except KeyError:
+        assert (
+            utils.cache_key_name("ttl_1", "1")
+            not in await _make_async_fake_redis_client().keys()
+        )
+
+
+async def test_redis_store_custom_ttl():
+    get_item, set_item = redis.make_store(
+        _make_async_fake_redis_client,
+        5,
+        1,
         "ttl_1",
         json.dumps,
         json.loads,
