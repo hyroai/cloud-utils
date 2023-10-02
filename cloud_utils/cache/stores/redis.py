@@ -1,5 +1,5 @@
 import logging
-from typing import Any, Callable, Tuple, Union
+from typing import Any, Callable, Tuple
 
 import gamla
 import redis.asyncio as redis
@@ -84,4 +84,6 @@ def make_store(
     encoder: Callable[[Any], Any],
     decoder: Callable[[Any], Any],
 ) -> Tuple[Callable, Callable]:
-    return make_store_with_custom_ttl(make_redis_client, max_parallelism, gamla.just(ttl), name, encoder, decoder)
+    return make_store_with_custom_ttl(
+        make_redis_client, max_parallelism, gamla.just(ttl), name, encoder, decoder
+    )
