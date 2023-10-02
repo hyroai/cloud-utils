@@ -52,7 +52,8 @@ def common_store_logic(
             raise KeyError
 
     async def set_item(key: str, value):
-        ttl_value = ttl if type(ttl) is int else ttl(value)
+        ttl_function = gamla.just(ttl) if type(ttl) == int else ttl
+        ttl_value = ttl_function(value)
         value = encoder(value)
         if ttl_value == 0:
             await redis_error_handler(
