@@ -34,6 +34,7 @@ async def releases():
     )
 
 
+@gamla.throttle(1)
 async def install_release(
     chart_name: str,
     release_name: str,
