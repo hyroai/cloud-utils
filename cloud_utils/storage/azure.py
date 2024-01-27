@@ -17,10 +17,11 @@ _API_VERSION = "2019-02-02"
 
 def _get_connection_config():
     return gamla.pipe(
-        os.getenv("AZURE_STORAGE_CONNECTION_STRING"),
+        os.environ.get("AZURE_STORAGE_CONNECTION_STRING"),
         gamla.split_text(";"),
         gamla.map(lambda text: text.split("=", 1)),
         dict,
+        gamla.keymap(lambda key: key.strip("\\")),
     )
 
 
@@ -66,7 +67,9 @@ def head_headers_and_url(bucket_name: str, blob_name: str):
 
 def _blob_service():
     return blob.BlockBlobService(
-        connection_string=os.getenv("AZURE_STORAGE_CONNECTION_STRING"),
+        connection_string=os.environ.get("AZURE_STORAGE_CONNECTION_STRING").replace(
+            "\\", ""
+        ),
         socket_timeout=(2000, 2000),
     )
 
