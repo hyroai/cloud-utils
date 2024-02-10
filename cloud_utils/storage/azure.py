@@ -9,7 +9,6 @@ import pathlib
 from typing import Any, Text
 
 import gamla
-from azure import common
 from azure.storage import blob
 
 _API_VERSION = "2019-02-02"
@@ -122,7 +121,7 @@ def download_blob_as_string_with_encoding(
 ) -> Text:
     try:
         return _download_blob(bucket_name, blob_name).decode(encoding)
-    except common.AzureMissingResourceHttpError:
+    except blob.StorageErrorCode.RESOURCE_NOT_FOUND:
         raise FileNotFoundError
 
 
@@ -133,7 +132,7 @@ download_blob_as_string = download_blob_as_string_with_encoding("utf-8")
 def download_blob_as_stream(bucket_name: str, blob_name: str) -> io.BytesIO:
     try:
         return io.BytesIO(_download_blob(bucket_name, blob_name))
-    except common.AzureMissingResourceHttpError:
+    except blob.StorageErrorCode.RESOURCE_NOT_FOUND:
         raise FileNotFoundError
 
 
@@ -141,7 +140,7 @@ def download_blob_to_file(bucket_name: str, blob_name: str, path: pathlib.Path):
     try:
         with open(path.resolve(), "wb") as target_file:
             target_file.write(_download_blob(bucket_name, blob_name))
-    except common.AzureMissingResourceHttpError:
+    except blob.StorageErrorCode.RESOURCE_NOT_FOUND:
         raise FileNotFoundError
 
 
