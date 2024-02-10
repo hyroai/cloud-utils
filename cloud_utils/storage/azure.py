@@ -17,7 +17,7 @@ _API_VERSION = "2019-02-02"
 
 def _get_connection_config():
     return gamla.pipe(
-        os.getenv("AZURE_STORAGE_CONNECTION_STRING"),
+        os.environ["AZURE_STORAGE_CONNECTION_STRING"],
         gamla.split_text(";"),
         gamla.map(lambda text: text.split("=", 1)),
         dict,
@@ -64,15 +64,39 @@ def head_headers_and_url(bucket_name: str, blob_name: str):
     )
 
 
-def _blob_service():
-    return blob.BlockBlobService(
-        connection_string=os.getenv("AZURE_STORAGE_CONNECTION_STRING"),
-        socket_timeout=(2000, 2000),
+def _to_bytes(text: str):
+    return bytes(text, "utf-8")
+
+
+def _upload_blob(bucket_name: str, blob_name: str, data: str | bytes, zipped: bool):
+    blob.BlobClient.from_connection_string(
+        conn_str=os.environ["AZURE_STORAGE_CONNECTION_STRING"],
+        container_name=bucket_name,
+        blob_name=blob_name,
+        connection_timeout=120,
+        max_single_put_size=4 * 1024 * 1024,
+    ).upload_blob(
+        data,
+        overwrite=True,
+        max_concurrency=10,
+        timeout=600,
+        content_settings=blob.ContentSettings(content_encoding="gzip")
+        if zipped
+        else None,
     )
 
 
-def _to_bytes(text: str):
-    return bytes(text, "utf-8")
+def _download_blob(bucket_name: str, blob_name: str) -> bytes:
+    return (
+        blob.BlobClient.from_connection_string(
+            conn_str=os.environ["AZURE_STORAGE_CONNECTION_STRING"],
+            container_name=bucket_name,
+            blob_name=blob_name,
+            max_single_get_size=64 * 1024 * 1024,
+        )
+        .download_blob(max_concurrency=10)
+        .readall()
+    )
 
 
 def upload_blob(bucket_name: str, blob_name: str, obj: Any):
@@ -82,18 +106,12 @@ def upload_blob(bucket_name: str, blob_name: str, obj: Any):
         _to_bytes,
         gzip.compress,
         io.BytesIO,
-        lambda stream: _blob_service().create_blob_from_stream(
-            bucket_name,
-            blob_name,
-            stream,
-            timeout=1800,
-            content_settings=blob.ContentSettings(content_encoding="gzip"),
-        ),
+        lambda stream: _upload_blob(bucket_name, blob_name, stream, True),
     )
 
 
 def upload_text(bucket_name: str, blob_name: str, text: Text):
-    _blob_service().create_blob_from_text(bucket_name, blob_name, text)
+    _upload_blob(bucket_name, blob_name, text, False)
 
 
 @gamla.curry
@@ -103,11 +121,7 @@ def download_blob_as_string_with_encoding(
     blob_name: str,
 ) -> Text:
     try:
-        return (
-            _blob_service()
-            .get_blob_to_text(bucket_name, blob_name, encoding=encoding)
-            .content
-        )
+        return _download_blob(bucket_name, blob_name).decode(encoding)
     except common.AzureMissingResourceHttpError:
         raise FileNotFoundError
 
@@ -118,21 +132,15 @@ download_blob_as_string = download_blob_as_string_with_encoding("utf-8")
 @gamla.curry
 def download_blob_as_stream(bucket_name: str, blob_name: str) -> io.BytesIO:
     try:
-        stream = io.BytesIO()
-        _blob_service().get_blob_to_stream(bucket_name, blob_name, stream)
-        stream.seek(0)
-        return stream
+        return io.BytesIO(_download_blob(bucket_name, blob_name))
     except common.AzureMissingResourceHttpError:
         raise FileNotFoundError
 
 
 def download_blob_to_file(bucket_name: str, blob_name: str, path: pathlib.Path):
     try:
-        return _blob_service().get_blob_to_path(
-            bucket_name,
-            blob_name,
-            str(path.resolve()),
-        )
+        with open(path.resolve(), "wb") as target_file:
+            target_file.write(_download_blob(bucket_name, blob_name))
     except common.AzureMissingResourceHttpError:
         raise FileNotFoundError
 
