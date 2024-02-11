@@ -63,10 +63,6 @@ def head_headers_and_url(bucket_name: str, blob_name: str):
     )
 
 
-def _to_bytes(text: str):
-    return bytes(text, "utf-8")
-
-
 def _upload_blob(bucket_name: str, blob_name: str, data: str | bytes, zipped: bool):
     blob.BlobClient.from_connection_string(
         conn_str=os.environ["AZURE_STORAGE_CONNECTION_STRING"],
@@ -102,7 +98,7 @@ def upload_blob(bucket_name: str, blob_name: str, obj: Any):
     return gamla.pipe(
         obj,
         gamla.to_json,
-        _to_bytes,
+        lambda text: bytes(text, "utf-8"),
         gzip.compress,
         io.BytesIO,
         lambda stream: _upload_blob(bucket_name, blob_name, stream, True),
