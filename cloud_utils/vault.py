@@ -1,35 +1,33 @@
+from typing import Callable, Optional
+
 import hvac
 
-_URL = "URL"
-_TOKEN = "TOKEN"
+_MOUNT_POINT = "MOUNT_POINT"
 
 
-def _get_client(url: str, token: str) -> hvac.Client:
-    return hvac.Client(url=url, token=token)
+def _build_read_all_secrets(client: hvac.Client):
+    async def read_all_secrets(path: str) -> dict[str, str]:
+        read_secrets = client.secrets.kv.v2.read_secret_version(path=path)
+        return read_secrets["data"]["data"]
+
+    return read_all_secrets
 
 
-def read_all_secrets(path: str) -> dict[str, str]:
-    client = _get_client(_URL, _TOKEN)
-    read_secrets = client.secrets.kv.v2.read_secret_version(path=path)
-    return read_secrets["data"]["data"]
+def _build_write_or_update_secrets(client: hvac.Client, read_all_secrets: Callable):
+    async def write_or_update_secrets(path: str, secrets: dict[str, str]):
+        secrets_data = await read_all_secrets(path)
+        secrets_data.update(secrets)
+        client.secrets.kv.v2.create_or_update_secret(
+            path=path,
+            secret=secrets_data,
+            mount_point=_MOUNT_POINT,
+        )
+
+    return write_or_update_secrets
 
 
-# TODO: do we want to have the ability to read a specific secret?
-# def read_secret(path: str, key: str) -> str:
-#     secrets_data = read_all_secrets(path)
-#     return secrets_data[key]
-
-
-def write_or_update_secrets(path: str, secrets: dict[str, str], mount_point: str):
-    client = _get_client(_URL, _TOKEN)
-    secrets_data = read_all_secrets(path)
-    secrets_data.update(secrets)
-    client.secrets.kv.v2.create_or_update_secret(
-        path=path,
-        secret=secrets_data,
-        mount_point=mount_point,
-    )
-
-
-def make_vault():
-    return write_or_update_secrets, read_all_secrets
+def make_vault(host: str, token: Optional[str]):
+    client = hvac.Client(url=host, token=token)
+    read_all_secrets = _build_read_all_secrets(client)
+    write_or_update_secrets = _build_write_or_update_secrets(client, read_all_secrets)
+    return read_all_secrets, write_or_update_secrets
