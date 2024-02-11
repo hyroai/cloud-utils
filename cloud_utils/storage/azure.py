@@ -115,10 +115,7 @@ def download_blob_as_string_with_encoding(
     bucket_name: str,
     blob_name: str,
 ) -> Text:
-    try:
-        return _download_blob(bucket_name, blob_name).decode(encoding)
-    except blob.StorageErrorCode.RESOURCE_NOT_FOUND:
-        raise FileNotFoundError
+    return _download_blob(bucket_name, blob_name).decode(encoding)
 
 
 download_blob_as_string = download_blob_as_string_with_encoding("utf-8")
@@ -126,18 +123,12 @@ download_blob_as_string = download_blob_as_string_with_encoding("utf-8")
 
 @gamla.curry
 def download_blob_as_stream(bucket_name: str, blob_name: str) -> io.BytesIO:
-    try:
-        return io.BytesIO(_download_blob(bucket_name, blob_name))
-    except blob.StorageErrorCode.RESOURCE_NOT_FOUND:
-        raise FileNotFoundError
+    return io.BytesIO(_download_blob(bucket_name, blob_name))
 
 
 def download_blob_to_file(bucket_name: str, blob_name: str, path: pathlib.Path):
-    try:
-        with open(path.resolve(), "wb") as target_file:
-            target_file.write(_download_blob(bucket_name, blob_name))
-    except blob.StorageErrorCode.RESOURCE_NOT_FOUND:
-        raise FileNotFoundError
+    with open(path.resolve(), "wb") as target_file:
+        target_file.write(_download_blob(bucket_name, blob_name))
 
 
 @gamla.curry
