@@ -17,7 +17,7 @@ def _build_read_all_secrets(client: hvac.Client):
 
 def _build_write_or_update_secrets(client: hvac.Client, read_all_secrets: Callable):
     def write_or_update_secrets(path: str, secrets: dict[str, str]):
-        secrets_data = read_all_secrets(path)
+        secrets_data = read_all_secrets(path, None)
         secrets_data.update(secrets)
         client.secrets.kv.v2.create_or_update_secret(
             path=path,
