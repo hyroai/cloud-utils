@@ -6,16 +6,18 @@ _MOUNT_POINT = "MOUNT_POINT"
 
 
 def _build_read_all_secrets(client: hvac.Client):
-    async def read_all_secrets(path: str) -> dict[str, str]:
-        read_secrets = client.secrets.kv.v2.read_secret_version(path=path)
+    def read_all_secrets(path: str, version: Optional[str]) -> dict[str, str]:
+        read_secrets = client.secrets.kv.v2.read_secret_version(
+            path=path, version=version
+        )
         return read_secrets["data"]["data"]
 
     return read_all_secrets
 
 
 def _build_write_or_update_secrets(client: hvac.Client, read_all_secrets: Callable):
-    async def write_or_update_secrets(path: str, secrets: dict[str, str]):
-        secrets_data = await read_all_secrets(path)
+    def write_or_update_secrets(path: str, secrets: dict[str, str]):
+        secrets_data = read_all_secrets(path)
         secrets_data.update(secrets)
         client.secrets.kv.v2.create_or_update_secret(
             path=path,
