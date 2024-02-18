@@ -7,7 +7,7 @@ from hvac.exceptions import InvalidPath
 _MOUNT_POINT = "secret"
 
 
-class InvalidVaultPath(Exception):
+class InvalidVaultPathError(Exception):
     pass
 
 
@@ -19,7 +19,7 @@ def _build_read_secret(client: Client) -> Callable:
             )
             return secret["data"]["data"]
         except InvalidPath:
-            raise InvalidVaultPath(f"Invalid vault path: {path}")
+            raise InvalidVaultPathError(f"Invalid vault path: {path}")
 
     return read_secret
 
@@ -28,7 +28,7 @@ def _build_write_or_update_secret(client: Client, read_secret: Callable) -> Call
     def write_or_update_secret(path: str, new_keys: dict[str, str]):
         try:
             existing_keys = read_secret(path, None)
-        except InvalidVaultPath:
+        except InvalidVaultPathError:
             existing_keys = {}
         existing_keys.update(new_keys)
         client.secrets.kv.v2.create_or_update_secret(
