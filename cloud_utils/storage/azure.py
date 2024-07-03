@@ -35,7 +35,7 @@ def _sign_params(key: str, params: dict):
 
 def head_headers_and_url(bucket_name: str, blob_name: str):
     now = datetime.datetime.utcnow().strftime("%a, %d %b %Y %H:%M:%S GMT")
-    config = _get_connection_config()
+    config = gamla.keymap(gamla.replace_in_text("\\", ""))(_get_connection_config())
     params = {
         "verb": "HEAD",
         "Content-Encoding": "",
@@ -65,7 +65,7 @@ def head_headers_and_url(bucket_name: str, blob_name: str):
 
 def _upload_blob(bucket_name: str, blob_name: str, data: str | bytes, zipped: bool):
     blob.BlobClient.from_connection_string(
-        conn_str=os.environ["AZURE_STORAGE_CONNECTION_STRING"],
+        conn_str=os.environ["AZURE_STORAGE_CONNECTION_STRING"].replace("\\", ""),
         container_name=bucket_name,
         blob_name=blob_name,
         connection_timeout=120,
