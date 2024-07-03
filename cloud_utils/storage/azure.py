@@ -35,10 +35,7 @@ def _sign_params(key: str, params: dict):
 
 def head_headers_and_url(bucket_name: str, blob_name: str):
     now = datetime.datetime.utcnow().strftime("%a, %d %b %Y %H:%M:%S GMT")
-    config = _get_connection_config()
-    account_name_key = "AccountName\\"
-    account_key_key = "AccountKey\\"
-    endpoint_suffix_key = "EndpointSuffix\\"
+    config = gamla.keymap(gamla.replace_in_text("\\", ""))(_get_connection_config())
     params = {
         "verb": "HEAD",
         "Content-Encoding": "",
@@ -53,16 +50,16 @@ def head_headers_and_url(bucket_name: str, blob_name: str):
         "If-Unmodified-Since": "",
         "Range": "",
         "CanonicalizedHeaders": f"x-ms-date:{now}\nx-ms-version:{_API_VERSION}",
-        "CanonicalizedResource": f"/{config[account_name_key]}/{bucket_name}/{blob_name}",
+        "CanonicalizedResource": f"/{config['AccountName']}/{bucket_name}/{blob_name}",
     }
 
     return (
         {
             "x-ms-version": _API_VERSION,
             "x-ms-date": now,
-            "Authorization": f"SharedKey {config[account_name_key]}:{_sign_params(config[account_key_key], params)}",
+            "Authorization": f"SharedKey {config['AccountName']}:{_sign_params(config['AccountKey'], params)}",
         },
-        f"https://{config[account_name_key]}.blob.{config[endpoint_suffix_key]}/{bucket_name}/{blob_name}",
+        f"https://{config['AccountName']}.blob.{config['EndpointSuffix']}/{bucket_name}/{blob_name}",
     )
 
 
