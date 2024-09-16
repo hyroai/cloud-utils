@@ -12,7 +12,7 @@ class _HelmException(Exception):
     pass
 
 
-async def _run_in_shell(args, path: str) -> Text:
+async def run_in_shell(args, path: str) -> Text:
     logging.info(f"Running shell command: {args}.")
     process = await asyncio.subprocess.create_subprocess_shell(
         cmd=" ".join(args),
@@ -28,7 +28,7 @@ async def _run_in_shell(args, path: str) -> Text:
 
 async def releases():
     return gamla.pipe(
-        await _run_in_shell(["helm", "list", "-q"], "./"),
+        await run_in_shell(["helm", "list", "-q"], "./"),
         lambda output: output.split("\n"),
         frozenset,
     )
@@ -47,7 +47,7 @@ async def install_release(
     try:
         with open(filename, "w") as values_file:
             values_file.write(yaml.dump(chart_values))
-        await _run_in_shell(
+        await run_in_shell(
             ["helm", "upgrade", release_name, chart_name, "--install", "-f", filename]
             + helm_extra_args,
             chart_physical_dir,
@@ -58,6 +58,6 @@ async def install_release(
 
 async def delete_release(release_name: str):
     try:
-        await _run_in_shell(["helm", "uninstall", release_name], "./")
+        await run_in_shell(["helm", "uninstall", release_name], "./")
     except _HelmException:
         logging.error(f"Unable to delete release {release_name}.")
