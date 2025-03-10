@@ -87,7 +87,7 @@ def _download_blob(bucket_name: str, blob_name: str) -> bytes:
             conn_str=os.environ["AZURE_STORAGE_CONNECTION_STRING"],
             container_name=bucket_name,
             blob_name=blob_name,
-            max_single_get_size=64 * 1024 * 1024,
+            max_single_get_size=256 * 1024 * 1024,
         )
         .download_blob(max_concurrency=10)
         .readall()
