@@ -1,5 +1,5 @@
 repos:
   - repo: https://github.com/hyroai/lint
-    rev: eb3d81e2b50d7ac44ed9fe00c2ac3cac2511f3e7
+    rev: 29f3032e3a69fb69845210b14661628de72e4ef3
     hooks:
       - id: hyro-pre-commit
