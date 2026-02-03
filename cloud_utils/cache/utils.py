@@ -12,7 +12,7 @@ _RESULT_HASH_KEY = "result_hash"
 _LAST_RUN_TIMESTAMP = "last_run_timestamp"
 
 
-class VersionNotFound(Exception):
+class VersionNotFoundError(Exception):
     pass
 
 
