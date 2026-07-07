@@ -1,3 +1,4 @@
+import atexit
 import logging
 import os
 import pickle
@@ -67,6 +68,20 @@ def make_store(cache_path: str, name: str) -> Tuple[Callable, Callable]:
                 logging.error(
                     f"Could not sync {name} with local file. Error: {exception}.",
                 )
+
+    def flush_on_exit():
+        # The periodic sync above leaves the last `change_count` (< threshold) writes
+        # unpersisted; flush them once at shutdown so the on-disk cache is complete.
+        if change_count == 0:
+            return
+        try:
+            _save_cache_locally(name, cache_path, cache)
+        except (OSError, IOError, EOFError) as exception:
+            logging.error(
+                f"Could not flush {name} to local file on exit. Error: {exception}.",
+            )
+
+    atexit.register(flush_on_exit)
 
     return get_item, set_item
 

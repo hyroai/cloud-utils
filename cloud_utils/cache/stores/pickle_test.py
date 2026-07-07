@@ -1,4 +1,29 @@
+import os
+import pickle as stdlib_pickle
+import subprocess
+import sys
+
 from cloud_utils.cache.stores import pickle
+
+
+def test_pickle_store_flushes_sub_threshold_writes_on_exit(tmp_path):
+    # A handful of writes never reaches the periodic-sync threshold, so without the
+    # exit flush the on-disk cache is never written. A clean process exit must still
+    # persist all of them.
+    keys = 3
+    subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            "from cloud_utils.cache.stores import pickle;"
+            f"_, set_item = pickle.make_store({str(tmp_path)!r}, 'exit-store');"
+            f"[set_item(str(i), i) for i in range({keys})]",
+        ],
+        check=True,
+        env={**os.environ, "PYTHONPATH": os.pathsep.join(sys.path)},
+    )
+    with open(tmp_path / "exit-store.pickle", "rb") as cache_file:
+        assert len(stdlib_pickle.load(cache_file)) == keys
 
 
 def test_pickle_store(pickle_file):
