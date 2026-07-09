@@ -7,8 +7,6 @@ import gamla
 
 from cloud_utils.cache import utils
 
-_NUMBER_OF_KEYS_CHANGED_TO_TRIGGER_SYNC = 50
-
 
 def _local_cache_path(cache_name: str, path: str):
     return os.path.join(path, f"{cache_name}.pickle")
@@ -29,7 +27,9 @@ def _save_cache_locally(cache_name: str, path: str, cache: Dict[Tuple, Any]):
     logging.info(f"Saved {len(cache)} cache items locally for {cache_name}.")
 
 
-def make_store(cache_path: str, name: str) -> Tuple[Callable, Callable]:
+def make_store(
+    cache_path: str, name: str, sync_threshold: int
+) -> Tuple[Callable, Callable]:
     change_count = 0
     utils.log_initialized_cache("pickle", name)
     # Initialize cache.
@@ -52,9 +52,9 @@ def make_store(cache_path: str, name: str) -> Tuple[Callable, Callable]:
         change_count += 1
         cache[utils.cache_key_name(name, key)] = value
 
-        if change_count >= _NUMBER_OF_KEYS_CHANGED_TO_TRIGGER_SYNC:
+        if change_count >= sync_threshold:
             logging.info(
-                f"More than {_NUMBER_OF_KEYS_CHANGED_TO_TRIGGER_SYNC} keys changed in cache {name}. Syncing with local file.",
+                f"{change_count} keys changed in cache {name} (threshold {sync_threshold}). Syncing with local file.",
             )
 
             try:
@@ -62,7 +62,7 @@ def make_store(cache_path: str, name: str) -> Tuple[Callable, Callable]:
                 logging.info(
                     f"Synced cache {name} to local file",
                 )
-                change_count -= _NUMBER_OF_KEYS_CHANGED_TO_TRIGGER_SYNC
+                change_count -= sync_threshold
             except (OSError, IOError, EOFError) as exception:
                 logging.error(
                     f"Could not sync {name} with local file. Error: {exception}.",
