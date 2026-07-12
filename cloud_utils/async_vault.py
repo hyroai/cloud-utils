@@ -7,7 +7,7 @@ from cloud_utils import vault_shared
 _TIMEOUT = 5.0
 
 
-async def _k8s_login(host: str, role: str) -> str:
+async def _k8s_login(host: str, role: Optional[str]) -> str:
     jwt = open(vault_shared.K8S_JWT_PATH).read()
     async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
         response = await client.post(
