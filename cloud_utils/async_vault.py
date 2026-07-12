@@ -56,7 +56,7 @@ def _build_write_or_update_secret(
 async def make_vault_async(
     host: str, role: Optional[str], token: Optional[str]
 ) -> tuple[Callable, Callable]:
-    if not token and not role:
+    if not (token or role):
         raise Exception("Must specify either token or role")
     if not token:
         token = await _k8s_login(host, role)
