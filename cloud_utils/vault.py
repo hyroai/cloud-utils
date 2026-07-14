@@ -4,11 +4,7 @@ from hvac import Client
 from hvac.api.auth_methods import Kubernetes
 from hvac.exceptions import InvalidPath
 
-_MOUNT_POINT = "secret"
-
-
-class InvalidVaultPathError(Exception):
-    pass
+from cloud_utils import vault_shared
 
 
 def _build_read_secret(client: Client) -> Callable:
@@ -20,7 +16,7 @@ def _build_read_secret(client: Client) -> Callable:
             )
             return secret["data"]["data"]
         except InvalidPath:
-            raise InvalidVaultPathError(f"Invalid vault path: {path}")
+            raise vault_shared.InvalidVaultPathError(f"Invalid vault path: {path}")
 
     return read_secret
 
@@ -29,13 +25,13 @@ def _build_write_or_update_secret(client: Client, read_secret: Callable) -> Call
     def write_or_update_secret(path: str, new_keys: dict[str, str]):
         try:
             existing_keys = read_secret(path, None)
-        except InvalidVaultPathError:
+        except vault_shared.InvalidVaultPathError:
             existing_keys = {}
         existing_keys.update(new_keys)
         client.secrets.kv.v2.create_or_update_secret(
             path=path,
             secret=existing_keys,
-            mount_point=_MOUNT_POINT,
+            mount_point=vault_shared.MOUNT_POINT,
         )
 
     return write_or_update_secret
@@ -51,7 +47,7 @@ def make_vault(host: str, role: Optional[str], token: Optional[str]):
         client = Client(url=host)
         Kubernetes(client.adapter).login(
             role=role,
-            jwt=open("/var/run/secrets/kubernetes.io/serviceaccount/token").read(),
+            jwt=open(vault_shared.K8S_JWT_PATH).read(),
         )
 
     read_secret = _build_read_secret(client)

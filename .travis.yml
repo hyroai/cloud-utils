@@ -7,6 +7,7 @@ jobs:
     - stage: test
       name: pytest
       install:
+        - pip install --upgrade pytest pytest-httpx
         - pip install -e .
       script: pytest
     - stage: test

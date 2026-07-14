@@ -25,6 +25,7 @@ dependencies = [
     "fakeredis",
     "gamla>=152",
     "google-cloud-storage",
+    "httpx>=0.23",
     "hvac",
     "kubernetes",
     "motor",
