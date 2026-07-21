@@ -11,7 +11,8 @@ def _build_read_secret(client: Client) -> Callable:
     def read_secret(path: str, version: Optional[str]) -> dict[str, str]:
         try:
             secret = client.secrets.kv.v2.read_secret_version(
-                path=path, version=version
+                path=path,
+                version=version,
             )
             return secret["data"]["data"]
         except InvalidPath:

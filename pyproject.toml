@@ -1,0 +1,85 @@
+[build-system]
+requires = ["setuptools>=80", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "cloud-utils"
+version = "0.0.1"
+description = "Tools for multi cloud deployments."
+readme = "README.md"
+requires-python = ">=3.14"
+license = { text = "MIT" }
+classifiers = [
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.14",
+]
+dependencies = [
+    "async-cache",
+    "azure-storage-blob~=12.20.0",
+    "boto3",
+    "cachetools",
+    "datadog_api_client",
+    "dnspython",
+    "fakeredis",
+    "gamla>=152",
+    "google-cloud-storage",
+    "httpx>=0.23",
+    "hvac",
+    "kubernetes",
+    "motor",
+    "pymongo<4",
+    "pytest",
+    "redis",
+    "slack-sdk",
+    "xmltodict",
+]
+
+[project.scripts]
+deploy-cron-jobs = "cloud_utils.scheduler.deploy_cron_jobs:main"
+run-jobs = "cloud_utils.scheduler.run_jobs:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["cloud_utils*"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+log_cli = true
+log_cli_level = "INFO"
+log_cli_format = "%(asctime)s [%(levelname)8s] %(message)s (%(filename)s:%(lineno)s)"
+log_cli_date_format = "%Y-%m-%d %H:%M:%S"
+
+[tool.mypy]
+[[tool.mypy.overrides]]
+module = "redis.*"
+ignore_missing_imports = true
+[[tool.mypy.overrides]]
+module = "yaml.*"
+ignore_missing_imports = true
+
+[tool.isort]
+atomic = true
+not_skip = ["__init__.py"]
+line_length = 88
+multi_line_output = 3
+include_trailing_comma = true
+known_third_party = [
+    "azure",
+    "boto3",
+    "cache",
+    "cachetools",
+    "datadog_api_client",
+    "fakeredis",
+    "gamla",
+    "google",
+    "kubernetes",
+    "motor",
+    "pymongo",
+    "pytest",
+    "redis",
+    "setuptools",
+    "slack_sdk",
+    "yaml",
+]

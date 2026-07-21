@@ -75,9 +75,9 @@ def _upload_blob(bucket_name: str, blob_name: str, data: str | bytes, zipped: bo
         overwrite=True,
         max_concurrency=10,
         timeout=600,
-        content_settings=blob.ContentSettings(content_encoding="gzip")
-        if zipped
-        else None,
+        content_settings=(
+            blob.ContentSettings(content_encoding="gzip") if zipped else None
+        ),
     )
 
 

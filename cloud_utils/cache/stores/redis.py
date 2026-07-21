@@ -85,5 +85,10 @@ def make_store(
     decoder: Callable[[Any], Any],
 ) -> Tuple[Callable, Callable]:
     return make_store_with_custom_ttl(
-        make_redis_client, max_parallelism, gamla.just(ttl), name, encoder, decoder
+        make_redis_client,
+        max_parallelism,
+        gamla.just(ttl),
+        name,
+        encoder,
+        decoder,
     )

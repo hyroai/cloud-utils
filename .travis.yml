@@ -1,7 +1,7 @@
 dist: jammy
 language: python
 python:
-  - 3.11
+  - 3.14
 jobs:
   include:
     - stage: test
@@ -12,9 +12,6 @@ jobs:
       script: pytest
     - stage: test
       name: pre-commit
-      before_install:
-        - git remote set-branches --add origin master
-        - git fetch origin master
       install: pip install pre-commit
-      script: pre-commit run --show-diff-on-failure --from-ref `git merge-base origin/master ${TRAVIS_COMMIT}` --to-ref ${TRAVIS_COMMIT}
+      script: pre-commit run --show-diff-on-failure --all-files
 

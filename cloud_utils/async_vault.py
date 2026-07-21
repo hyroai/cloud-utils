@@ -11,7 +11,8 @@ async def _k8s_login(host: str, role: Optional[str]) -> str:
     jwt = open(vault_shared.K8S_JWT_PATH).read()
     async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
         response = await client.post(
-            f"{host}/v1/auth/kubernetes/login", json={"role": role, "jwt": jwt}
+            f"{host}/v1/auth/kubernetes/login",
+            json={"role": role, "jwt": jwt},
         )
     response.raise_for_status()
     return response.json()["auth"]["client_token"]
@@ -34,7 +35,9 @@ def _build_read_secret(host: str, token: str) -> Callable:
 
 
 def _build_write_or_update_secret(
-    host: str, token: str, read_secret: Callable
+    host: str,
+    token: str,
+    read_secret: Callable,
 ) -> Callable:
     async def write_or_update_secret(path: str, new_keys: dict[str, str]) -> None:
         try:
@@ -54,7 +57,9 @@ def _build_write_or_update_secret(
 
 
 async def make_vault_async(
-    host: str, role: Optional[str], token: Optional[str]
+    host: str,
+    role: Optional[str],
+    token: Optional[str],
 ) -> tuple[Callable, Callable]:
     if not (token or role):
         raise Exception("Must specify either token or role")

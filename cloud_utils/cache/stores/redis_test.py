@@ -39,7 +39,9 @@ async def test_redis_store_unbounded():
 
 
 _ttl_by_value: Callable[[str], int] = gamla.ternary(
-    gamla.equals("1"), gamla.just(1), gamla.just(5)
+    gamla.equals("1"),
+    gamla.just(1),
+    gamla.just(5),
 )
 
 
