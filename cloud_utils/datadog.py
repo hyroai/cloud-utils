@@ -1,5 +1,4 @@
 import functools
-import inspect
 import logging
 import time
 from datetime import datetime
@@ -97,7 +96,7 @@ def _async_timeit_with_metric(api_key: str, f: Callable) -> Callable:
 
 @gamla.curry
 def timeit_with_metric(api_key: str, f: Callable) -> Callable:
-    if inspect.iscoroutinefunction(f):
+    if gamla.is_coroutine_function(f):
         return _async_timeit_with_metric(api_key, f)
 
     @functools.wraps(f)
