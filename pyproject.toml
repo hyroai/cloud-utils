@@ -23,7 +23,7 @@ dependencies = [
     "datadog_api_client",
     "dnspython",
     "fakeredis",
-    "gamla>=164",
+    "gamla==164",
     "google-cloud-storage",
     "httpx>=0.23",
     "hvac",
