@@ -22,19 +22,21 @@ dependencies = [
     "cachetools",
     "datadog_api_client",
     "dnspython",
-    "fakeredis",
     "gamla==164",
     "google-cloud-storage",
     "httpx>=0.23",
     "hvac",
     "kubernetes",
-    "motor",
+    # motor 3.x requires pymongo>=4, which the pin below rules out
+    "motor<3",
     "pymongo<4",
-    "pytest",
     "redis",
     "slack-sdk",
     "xmltodict",
 ]
+
+[dependency-groups]
+test = ["fakeredis", "pytest", "pytest-httpx"]
 
 [project.scripts]
 deploy-cron-jobs = "cloud_utils.scheduler.deploy_cron_jobs:main"
